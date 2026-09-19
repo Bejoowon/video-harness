@@ -1,0 +1,26 @@
+/* 이 파일은 frame.md에서 자동 생성됩니다. 직접 수정하지 마세요. */
+:root {
+  --c-bg: #101318;
+  --c-fg: #FFFFFF;
+  --c-accent: #FFE14D;
+  --f-caption: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-caption-w: 700;
+  --f-caption-size: 80px;
+  --f-title: "Paperlogy", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-title-w: 900;
+  --f-title-size: 96px;
+  --f-note: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --f-note-w: 500;
+  --f-note-size: 40px;
+  --l-title-top: 140px;
+  --l-caption-bottom: 420px;
+  --l-source-bottom: 96px;
+  --l-safe-side: 72px;
+  --s-caption-outline: 10px;
+  --s-shadow: 0 6px 0 rgba(0,0,0,0.35);
+  --m-in-dur: 0.35;
+  --m-in-ease: power3.out;
+  --m-out-dur: 0.2;
+  --m-out-ease: power1.in;
+  --m-stagger: 0.06;
+}

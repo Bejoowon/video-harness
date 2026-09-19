@@ -1,0 +1,30 @@
+# 도구 상태
+.omc/
+.DS_Store
+
+# 비밀값
+.env
+*.env
+credentials/
+client_secret*.json
+token.json
+
+# 대용량·생성물
+node_modules/
+.venv/
+models/
+*.mp4
+*.mov
+*.wav
+*.m4a
+*.safetensors
+.superpowers/
+dist/
+
+# Python
+__pycache__/
+*.pyc
+
+# 공개 저장소에 올리지 않는 것 (개발 기록, 개인 점검 목록)
+docs/
+*.local.txt

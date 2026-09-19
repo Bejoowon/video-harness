@@ -1,0 +1,4 @@
+interface:
+  display_name: "영상 하네스 세팅"
+  short_description: "쇼츠·릴스 제작 작업 공간을 인터뷰로 세팅하고 10초 렌더로 검증"
+  default_prompt: "영상 하네스 세팅을 시작해줘"

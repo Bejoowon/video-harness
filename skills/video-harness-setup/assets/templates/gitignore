@@ -1,0 +1,12 @@
+.env
+credentials/
+client_secret*.json
+node_modules/
+.venv/
+models/
+도구/logs/
+*.mp4
+*.mov
+*.mkv
+*.wav
+*.mp3

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <title>회차 템플릿</title>
+    <link rel="stylesheet" href="tokens.css" />
+    <script src="assets/gsap.min.js"></script>
+    <style>
+      /* 기본은 설치된 시스템 글꼴로 대체된다(파일 없음). 프로젝트 폰트 파일을 쓰려면
+         assets/fonts/넣는_방법.md 대로 파일을 넣고 아래 두 src에 url(...)을 직접 추가한다. */
+      @font-face { font-family: "Pretendard"; font-weight: 500 700; src: local("Pretendard"), local("Apple SD Gothic Neo"), local("Malgun Gothic"); }
+      @font-face { font-family: "Paperlogy"; font-weight: 900; src: local("Paperlogy"), local("Apple SD Gothic Neo"), local("Malgun Gothic"); }
+      body { margin: 0; background: var(--c-bg); color: var(--c-fg); }
+      #root { position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--c-bg); }
+      #footage-wrap { position: absolute; inset: 0; }
+      #footage { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+      #title-bar { position: absolute; left: var(--l-safe-side); right: var(--l-safe-side); top: var(--l-title-top); display: flex; justify-content: center; }
+      #title-text { margin: 0; font-family: var(--f-title); font-weight: var(--f-title-w); font-size: var(--f-title-size); line-height: 1.15; text-align: center; color: var(--c-accent); text-shadow: var(--s-shadow); }
+      #caption { position: absolute; left: var(--l-safe-side); right: var(--l-safe-side); bottom: var(--l-caption-bottom); display: flex; justify-content: center; }
+      #caption-text { margin: 0; font-family: var(--f-caption); font-weight: var(--f-caption-w); font-size: var(--f-caption-size); line-height: 1.25; text-align: center; color: var(--c-fg); -webkit-text-stroke: var(--s-caption-outline) var(--c-bg); paint-order: stroke fill; }
+      #source { position: absolute; right: var(--l-safe-side); bottom: var(--l-source-bottom); }
+      #source-text { margin: 0; font-family: var(--f-note); font-weight: var(--f-note-w); font-size: var(--f-note-size); color: var(--c-fg); opacity: 0.8; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-width="1080" data-height="1920" data-duration="10">
+      <div id="footage-wrap" class="clip" data-start="0" data-duration="10" data-track-index="0">
+        <img id="footage" src="assets/footage-placeholder.png" alt="" />
+      </div>
+      <div id="title-bar" class="clip" data-start="0" data-duration="10" data-track-index="2">
+        <h1 id="title-text">제목이 들어갑니다</h1>
+      </div>
+      <div id="caption" class="clip" data-start="0.4" data-duration="9.6" data-track-index="3">
+        <p id="caption-text">자막 한 줄이 들어갑니다</p>
+      </div>
+      <div id="source" class="clip" data-start="0" data-duration="10" data-track-index="4">
+        <p id="source-text">출처 표기</p>
+      </div>
+      <audio id="narration" src="assets/narration.wav" data-start="0" data-volume="1"></audio>
+    </div>
+    <script>
+      const css = getComputedStyle(document.documentElement);
+      const num = (name) => parseFloat(css.getPropertyValue(name));
+      const str = (name) => css.getPropertyValue(name).trim();
+      const tl = gsap.timeline({ paused: true });
+      tl.fromTo("#title-text", { y: -40, opacity: 0 }, { y: 0, opacity: 1, duration: num("--m-in-dur"), ease: str("--m-in-ease") }, 0.1);
+      tl.fromTo("#caption-text", { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: num("--m-in-dur"), ease: str("--m-in-ease") }, 0.4);
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+GSAP (GreenSock Animation Platform) v3.14.2
+https://gsap.com
+
+License: GreenSock's Standard "no charge" license.
+Full text: https://gsap.com/standard-license
+
+Copied from the `license` field of the published npm package
+(`npm pack gsap@3.14.2`, `package/package.json`), since the package does not
+ship a standalone LICENSE file — the same text also appears under "License"
+in `package/README.md`.

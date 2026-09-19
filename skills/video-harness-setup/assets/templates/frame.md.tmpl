@@ -1,0 +1,54 @@
+---
+status: draft            # draft | approved
+channel: "{{channel_name}}"
+canvas: {width: 1080, height: 1920, fps: 30}
+colors:
+  bg: "#101318"
+  fg: "#FFFFFF"
+  accent: "#FFE14D"
+  accent_sets: []         # choose 후보. 예: [["#FFE14D","#FF5A5A"],["#7CE0D6","#FFE14D"]]
+typography:
+  caption: {family: "Pretendard", weight: 700, size: 80}
+  title: {family: "Paperlogy", weight: 900, size: 96}
+  note: {family: "Pretendard", weight: 500, size: 40}
+layout:
+  title_top: 140          # px, 캔버스 위에서
+  caption_bottom: 420     # px, 캔버스 아래에서
+  source_bottom: 96       # px, 캔버스 아래에서
+  safe_side: 72
+stroke: {caption_outline: 10, shadow: "0 6px 0 rgba(0,0,0,0.35)"}
+motion:
+  in: {duration: 0.35, ease: "power3.out"}
+  out: {duration: 0.2, ease: "power1.in"}
+  stagger: 0.06
+  transitions: ["cut"]
+consistency:
+  locked: [typography, layout, stroke, "motion.in", "motion.out"]
+  choose: {"colors.accent": "colors.accent_sets", "motion.transitions": ["cut", "crossfade"]}
+  free: ["illustration_colors", "footage"]
+---
+
+## 개요
+
+이 파일은 {{channel_name}} 채널 스타일의 단일 원본이다. 위 머리말이 규범 값이고, 본문은 맥락을 설명한다. HyperFrames는 이 머리말을 그대로 읽으므로 값을 바꾸면 회차 전체에 반영된다.
+
+`status`가 `draft`인 동안은 위 값이 아직 확정되지 않았다는 뜻이다. 레퍼런스 분석과 첫 샘플 승인을 거친 뒤 `approved`로 바꾼다.
+
+## 고정 범위
+
+`consistency` 항목은 값을 세 단계로 나눈다.
+
+- `locked` — 모든 회차가 같다. 어긋나면 오류로 표시한다.
+- `choose` — 정해 둔 후보 안에서 회차마다 고른다. 후보 밖이면 오류다.
+- `free` — 회차마다 자유롭게 정한다. 검사하지 않고 회차 문서에 기록만 한다.
+
+값을 다른 단계로 옮기거나 바꿀 때는 먼저 이 파일을 고치고 사용자 승인을 받는다.
+
+## 하지 말 것
+
+이 채널이 절대 하지 않는 것을 적는다. `check_style.py`와 에이전트가 이 목록을 읽고 지킨다.
+
+<!-- 아래 예시를 지우고 이 채널에 맞는 항목으로 바꾼다 -->
+- (예) 자막에 배경 박스를 넣지 않는다.
+- (예) 오프닝에 효과음을 겹치지 않는다.
+- (예) 실제 인물의 사진을 삽화로 대체하지 않는다.

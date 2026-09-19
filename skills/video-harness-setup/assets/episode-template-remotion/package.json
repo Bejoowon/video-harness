@@ -1,0 +1,22 @@
+{
+  "name": "episode-template-remotion",
+  "version": "1.0.0",
+  "description": "video-harness-setup Remotion 회차 템플릿",
+  "private": true,
+  "scripts": {
+    "dev": "npx remotion studio",
+    "build": "npx remotion bundle",
+    "render": "npx remotion render src/index.ts Episode out/episode.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.526",
+    "@remotion/media": "4.0.526",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.526"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.7",
+    "typescript": "5.9.3"
+  }
+}
