@@ -6,12 +6,23 @@
 
 ## 에이전트에게 이렇게 말하세요
 
-**① 설치** — Claude Code나 Codex 채팅창에 그대로 붙여 넣습니다.
+**① 설치** — Claude Code나 Codex 채팅창에 그대로 붙여 넣습니다. 쓰는 컴퓨터에 맞는 쪽을 고릅니다.
+
+Mac:
 
 ```
-이 스킬을 설치해줘: https://github.com/Bejoowon/video-harness
-README의 "한 줄 설치" 명령을 그대로 실행하면 돼.
+아래 명령을 실행해서 영상 하네스 세팅 스킬을 설치해줘.
+curl -fsSL https://raw.githubusercontent.com/Bejoowon/video-harness/main/install.sh | bash
 ```
+
+Windows:
+
+```
+아래 명령을 Windows PowerShell에서 실행해서 영상 하네스 세팅 스킬을 설치해줘.
+irm https://raw.githubusercontent.com/Bejoowon/video-harness/main/install.ps1 | iex
+```
+
+에이전트가 "인터넷에서 받은 스크립트를 실행해도 되나요?"라고 물으면 허용하면 됩니다. 스킬 폴더 하나를 복사할 뿐, 다른 프로그램은 설치하지 않습니다.
 
 **② 껐다 켜기** — 설치가 끝나면 Claude Code(또는 Codex)를 닫았다가, 영상 작업에 쓸 **빈 폴더**에서 다시 엽니다. 새로 열어야 스킬이 보입니다.
 
@@ -21,7 +32,7 @@ README의 "한 줄 설치" 명령을 그대로 실행하면 돼.
 영상 하네스 세팅을 시작해줘
 ```
 
-첫 질문은 "어떤 채널을 만들고 싶으세요?"입니다. 그 뒤로는 묻는 말에 답하기만 하면 됩니다.
+첫 질문은 "어떤 채널을 만들고 싶으세요?"입니다. 에이전트가 먼저 어떤 채널을 만들고 싶은지 대화로 파악하고, 참고할 채널과 주제 후보를 찾아 보여 드린 뒤에 세팅을 시작합니다. 혼자 알아서 세팅해 버리지 않습니다.
 
 ## 설치
 
