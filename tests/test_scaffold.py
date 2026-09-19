@@ -407,3 +407,66 @@ def test_sub_exactly_once_accepts_a_single_occurrence():
 
     pattern = re.compile(r"width=\d+")
     assert s._sub_exactly_once(pattern, "width=1920", "a width=1080 b", "한 번") == "a width=1920 b"
+
+
+# --- 출발점(workflow)이 채널기준.md의 "작업 순서"를 정한다 ---
+
+
+def _channel_guide(tmp_path, channel_extra=None, sample_seconds=None):
+    c = cfg(tmp_path)
+    if channel_extra:
+        c["channels"][0].update(channel_extra)
+    if sample_seconds is not None:
+        c["rules"]["sample_seconds"] = sample_seconds
+    s.scaffold_channel(tmp_path, c, c["channels"][0])
+    return (tmp_path / "동네한바퀴/채널기준.md").read_text(encoding="utf-8")
+
+
+def test_channel_guide_shows_workflow_in_korean():
+    labels = {"footage-first": "찍은 영상 먼저", "script-first": "대본 먼저", "per-episode": "회차마다 정함"}
+    for value, label in labels.items():
+        assert s.WORKFLOW_LABELS[value] == label, value
+
+
+def test_channel_guide_records_footage_first_order(tmp_path):
+    guide = _channel_guide(tmp_path, {"workflow": "footage-first"})
+    assert "- 출발점: 찍은 영상 먼저" in guide
+    assert "## 작업 순서" in guide
+    assert "촬영본 확인" in guide and "전사" in guide
+    assert "전사 결과가 원본" in guide
+    assert "footage-first" not in guide
+
+
+def test_channel_guide_records_script_first_order(tmp_path):
+    guide = _channel_guide(tmp_path, {"workflow": "script-first"})
+    assert "- 출발점: 대본 먼저" in guide
+    assert "레퍼런스 분석" in guide and "대본이 자막의 원본" in guide
+    assert "촬영본 확인" not in guide
+
+
+def test_channel_guide_renders_both_orders_for_per_episode(tmp_path):
+    guide = _channel_guide(tmp_path, {"workflow": "per-episode"})
+    assert "- 출발점: 회차마다 정함" in guide
+    assert "촬영본이 있는가" in guide
+    assert "촬영본 확인" in guide and "대본이 자막의 원본" in guide
+
+
+def test_channel_guide_falls_back_when_workflow_is_missing(tmp_path):
+    guide = _channel_guide(tmp_path)
+    assert "- 출발점: (아직 정하지 않음)" in guide
+    assert "원본 확인 → 레퍼런스 분석 → 기획·대본" in guide
+
+
+def test_workflow_steps_use_the_configured_sample_seconds(tmp_path):
+    guide = _channel_guide(tmp_path, {"workflow": "script-first"}, sample_seconds=8)
+    assert "8초 샘플" in guide
+    assert "12초 샘플" not in guide
+
+
+def test_agents_md_defers_the_work_order_to_each_channel(tmp_path):
+    s.scaffold_workspace(tmp_path, cfg(tmp_path))
+    text = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert "채널기준.md" in text
+    # 채널에 순서가 없을 때 쓰는 공통 순서는 그대로 남아 있어야 한다.
+    assert "원본 확인 → 레퍼런스 분석 → 기획·대본" in text
+    assert "샘플을 먼저 만든다" in text

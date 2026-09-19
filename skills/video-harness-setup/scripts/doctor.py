@@ -239,10 +239,24 @@ def _env_items(workspace: Path, config: dict) -> list[dict]:
     return items
 
 
+def _workflow_item(workspace: Path, index: int, name: str) -> dict:
+    """출발점(workflow)이 비어 있는 채널을 `주의`로 알린다.
+
+    출발점이 없으면 `채널기준.md`의 "작업 순서"가 공통 순서로 남는다. 세팅을 막을
+    일은 아니므로 `fail`이 아니라 `warn`이다. 조치 문장은 목록 번호(0부터)를 그대로
+    짚어 복사해 실행할 수 있게 한다.
+    """
+    fix = h.script_fix("config_tool.py", "set", f'"{workspace}"', f"channels.{index}.workflow", "footage-first")
+    detail = "출발점이 정해지지 않았습니다 (footage-first · script-first · per-episode 중 하나)"
+    return _item(f"{name} 출발점", "warn", detail, fix)
+
+
 def _channel_items(workspace: Path, config: dict) -> list[dict]:
     items: list[dict] = []
-    for channel in config.get("channels", []):
+    for index, channel in enumerate(config.get("channels", [])):
         name = channel.get("name", "")
+        if not channel.get("workflow"):
+            items.append(_workflow_item(workspace, index, name))
         label = f"{name} frame.md"
         frame_path = workspace / name / "03_편집프로젝트" / "_채널공용" / "frame.md"
 

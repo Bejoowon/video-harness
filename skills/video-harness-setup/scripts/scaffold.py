@@ -62,6 +62,12 @@ KIND_LABELS = {
     "footage-shorts": "촬영본 중심 쇼츠",
     "longform-vlog": "롱폼 브이로그",
 }
+WORKFLOW_LABELS = {
+    "script-first": "대본 먼저",
+    "footage-first": "찍은 영상 먼저",
+    "per-episode": "회차마다 정함",
+}
+NO_WORKFLOW_LABEL = "(아직 정하지 않음)"
 STYLE_START_LABELS = {
     "reference": "레퍼런스 영상에서 뽑기",
     "preset": "기성 프리셋에서 고르기",
@@ -75,6 +81,23 @@ CONSISTENCY_LABELS = {
 }
 DEFAULT_STYLE_START = "later"
 DEFAULT_CONSISTENCY = "decide-later"
+
+# 출발점(workflow)별 "작업 순서". `{sample}`에는 `rules.sample_seconds`가 들어간다 —
+# AGENTS.md가 읽는 값과 같은 자리(`_agents_values`)에서 가져와 두 문서가 어긋나지 않게 한다.
+FOOTAGE_FIRST_ORDER = (
+    "촬영본 확인(길이·화질·소리) → 전사 → 쓸 구간 고르기 → 구성안 → "
+    "자막(전사 결과가 원본)·필요하면 보충 내레이션 → {sample}초 샘플 → "
+    "본편 편집(필요하면 편집기로 넘기기) → 검수 → 버전 저장"
+)
+SCRIPT_FIRST_ORDER = (
+    "주제 정하기 → 레퍼런스 분석 → 대본(대본이 자막의 원본) → 목소리(TTS·녹음) → "
+    "대본에 맞는 소재 찾기·생성(출처 기록) → {sample}초 샘플 → 본편 편집 → 검수 → 버전 저장"
+)
+# 출발점이 없는 채널(예전 설정·채택한 작업 공간)이 쓰는 공통 순서. AGENTS.md의 폴백과 같은 문장이다.
+GENERIC_ORDER = "원본 확인 → 레퍼런스 분석 → 기획·대본 → 음성과 {sample}초 샘플 → 본편 편집 → 검수 → 버전 저장."
+PER_EPISODE_INTRO = (
+    '회차를 시작할 때 "촬영본이 있는가"를 먼저 확인해 아래 두 순서 중 하나를 고르고, 고른 쪽을 회차 기록에 적는다.'
+)
 
 LATER_NOTE = "나중에 가져오기: 위 기준을 보고 레퍼런스를 고른 뒤 이 표에 추가한다. 자세한 방법은 `레퍼런스_모으는_법.md`를 참고한다."
 
@@ -274,13 +297,35 @@ def _agents_values(config: dict) -> dict:
     }
 
 
+def workflow_steps(workflow: str | None, sample_seconds) -> str:
+    """출발점에 맞는 "작업 순서" 문단을 만든다. 출발점이 없으면 공통 순서를 쓴다."""
+    footage = FOOTAGE_FIRST_ORDER.format(sample=sample_seconds)
+    script = SCRIPT_FIRST_ORDER.format(sample=sample_seconds)
+    if workflow == "footage-first":
+        return footage
+    if workflow == "script-first":
+        return script
+    if workflow == "per-episode":
+        lines = [
+            PER_EPISODE_INTRO,
+            "",
+            f"- {WORKFLOW_LABELS['footage-first']}: {footage}",
+            f"- {WORKFLOW_LABELS['script-first']}: {script}",
+        ]
+        return "\n".join(lines)
+    return GENERIC_ORDER.format(sample=sample_seconds)
+
+
 def _channel_values(config: dict, channel: dict) -> dict:
     values = _agents_values(config)
+    workflow = channel.get("workflow")
     values.update(
         {
             "channel_name": channel.get("name", ""),
             "format": channel.get("format", ""),
             "kind": KIND_LABELS.get(channel.get("kind"), channel.get("kind", "")),
+            "workflow": WORKFLOW_LABELS.get(workflow, NO_WORKFLOW_LABEL),
+            "workflow_steps": workflow_steps(workflow, values["sample_seconds"]),
             "target_seconds": channel.get("target_seconds", ""),
             "language": channel.get("language", ""),
             "concept": channel.get("concept", "(아직 정하지 않음)"),

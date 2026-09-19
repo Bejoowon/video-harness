@@ -290,3 +290,41 @@ def test_workspace_path_is_quoted_in_fixes(tmp_path):
         if ".py" not in fix:
             continue
         assert f'"{spaced}"' in fix, fix
+
+
+# --- 출발점(workflow)이 비어 있는 채널은 주의로만 알린다 ---
+
+
+def test_channel_without_workflow_is_warn_with_a_runnable_fix(tmp_path):
+    c = h.default_config()
+    c["channels"] = [_channel(name="첫채널"), _channel(name="둘째채널")]
+    c["channels"][0]["workflow"] = "footage-first"
+
+    items = d.diagnose(tmp_path, c, {"tools": {}, "missing_required": [], "editors": {}})
+    by = {i["item"]: i for i in items}
+
+    assert "첫채널 출발점" not in by
+    item = by["둘째채널 출발점"]
+    assert item["state"] == "warn"
+    assert "출발점이 정해지지 않았습니다" in item["detail"]
+    # 실제 목록 번호(두 번째 채널 = 1)를 짚어야 그대로 복사해 실행할 수 있다.
+    assert "channels.1.workflow" in item["fix"]
+    assert f'"{h.scripts_dir() / "config_tool.py"}"' in item["fix"]
+    assert f'"{tmp_path}"' in item["fix"]
+
+
+def test_missing_workflow_does_not_add_a_blocking_problem(tmp_path):
+    """`주의`는 전체 상태(`문제 있음`)를 바꾸지 않는다 — 출발점이 비어도 세팅은 완료될 수 있다."""
+    report = {"tools": {}, "missing_required": [], "editors": {}}
+    c = h.default_config()
+    c["channels"] = [_channel()]
+
+    without = d.diagnose(tmp_path, c, report)
+    c["channels"][0]["workflow"] = "script-first"
+    with_workflow = d.diagnose(tmp_path, c, report)
+
+    def fails(items):
+        return sorted(i["item"] for i in items if i["state"] == "fail")
+
+    assert any(i["item"].endswith("출발점") for i in without)
+    assert fails(without) == fails(with_workflow)
