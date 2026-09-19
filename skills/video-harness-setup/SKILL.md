@@ -84,7 +84,7 @@ python3 "${SKILL_DIR}/scripts/preflight.py" "<ws>" --json
 | 단계 | `footage-first` | `script-first` | `per-episode` |
 |---|---|---|---|
 | 편집기 넘기기 (4-1) | 쓰기를 권함 — 촬영본은 손으로 다듬는 단계가 생긴다 | `none` | 쓰기를 권함 |
-| 목소리 (5) | `record` — 원음·직접 녹음 | TTS — Apple Silicon이면 `local-mlx`도 안내하고, 아니면 `cloud` | 둘 다 설명하고 고르게 함 |
+| 목소리 (5) | `record` — 원음·직접 녹음 | Apple Silicon이면 `local-mlx` ★ — 무료이고 키가 필요 없으며 내 목소리로 읽는다. 그 밖의 컴퓨터는 `cloud` ★ — 고르기 전에 "본인 키가 필요하고 요금이 들 수 있다"를 먼저 알린다. 부담스러워하면 `record`를 권한다 | 둘 다 설명하고 고르게 함 |
 | 전사 (6) | 필수로 안내 — 전사 결과가 자막의 원본이다 | 설치 권함 — 자막 타이밍을 맞추는 데 쓴다 | 필수로 안내 |
 | 소재 (7) | `own-footage` | `stock`(무료 스톡)과 `higgsfield` 중에서 | 복수 선택 안내 |
 | 레퍼런스 분석 (8) | 선택 | 권함 — 다른 채널 영상을 보고 구성을 잡는 흐름이다 | 권함 |
