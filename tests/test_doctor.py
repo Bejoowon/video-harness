@@ -340,3 +340,47 @@ def test_missing_rhythm_checker_fixes_via_scaffold(tmp_path):
     item = by["도구/script/check_rhythm.py"]
     assert item["state"] == "fail"
     assert "scaffold.py" in item["fix"]
+
+
+# --- 채널 방향이 비어 있으면 주의로만 알린다 ---
+
+
+def test_channel_without_direction_is_warn_and_points_at_the_menu(tmp_path):
+    c = h.default_config()
+    c["channels"] = [_channel(name="첫채널"), _channel(name="둘째채널")]
+    c["channels"][0]["audience"] = "30~40대 동네 주민"
+
+    items = d.diagnose(tmp_path, c, {"tools": {}, "missing_required": [], "editors": {}})
+    by = {i["item"]: i for i in items}
+
+    assert "첫채널 방향" not in by
+    item = by["둘째채널 방향"]
+    assert item["state"] == "warn"
+    assert "채널 방향이 기록되지 않았습니다" in item["detail"]
+    # 조치는 명령이 아니라 "다시 물어보라"는 안내다 — 방향은 사용자만 답할 수 있다.
+    assert "채널 방향 다시 잡기" in item["fix"]
+    assert ".py" not in item["fix"]
+
+
+def test_scope_alone_counts_as_a_recorded_direction(tmp_path):
+    c = h.default_config()
+    c["channels"] = [_channel(name="첫채널")]
+    c["channels"][0]["scope"] = "달리기 기초만 다룬다"
+    items = d.diagnose(tmp_path, c, {"tools": {}, "missing_required": [], "editors": {}})
+    assert not any(i["item"] == "첫채널 방향" for i in items)
+
+
+def test_missing_direction_does_not_add_a_blocking_problem(tmp_path):
+    report = {"tools": {}, "missing_required": [], "editors": {}}
+    c = h.default_config()
+    c["channels"] = [_channel()]
+
+    without = d.diagnose(tmp_path, c, report)
+    c["channels"][0]["audience"] = "30~40대 동네 주민"
+    with_direction = d.diagnose(tmp_path, c, report)
+
+    def fails(items):
+        return sorted(i["item"] for i in items if i["state"] == "fail")
+
+    assert any(i["item"].endswith("방향") for i in without)
+    assert fails(without) == fails(with_direction)

@@ -98,6 +98,42 @@ def default_config() -> dict:
     }
 
 
+# 1부(방향 파악)에서 받는 채널의 선택 항목들. 값은 사람이 쓴 문장이라 열거할 수 없고,
+# 비어 있지 않은 문자열인지만 본다. 키가 아예 없는 것은 "아직 묻지 않았다"는 뜻으로 유효하다.
+DIRECTION_FIELDS = ("audience", "scope", "expertise", "tone", "platforms")
+EVIDENCE_LEVELS = {"normal", "strict"}
+TOPIC_STATUSES = {"researched", "idea"}
+
+
+def _topic_errors(channel_id: str, topics) -> list[str]:
+    """2부에서 고른 주제 후보(`topics`)를 검증한다. `validate_config`에서만 부른다."""
+    if not isinstance(topics, list):
+        return [f"channels[{channel_id}].topics: 목록이 아닙니다"]
+
+    errors: list[str] = []
+    for index, topic in enumerate(topics):
+        where = f"channels[{channel_id}].topics[{index}]"
+        if not isinstance(topic, dict):
+            errors.append(f"{where}: 객체가 아닙니다")
+            continue
+
+        title = topic.get("title")
+        if not isinstance(title, str) or not title.strip():
+            errors.append(f"{where}.title: 비어 있지 않은 문자열이어야 합니다")
+
+        basis = topic.get("basis")
+        if not isinstance(basis, str):
+            errors.append(f"{where}.basis: 문자열이어야 합니다")
+
+        status = topic.get("status")
+        if status not in TOPIC_STATUSES:
+            errors.append(f"{where}.status: 알 수 없는 값 '{status}' (허용: {sorted(TOPIC_STATUSES)})")
+        elif status == "researched" and isinstance(basis, str) and not basis.strip():
+            # `조사함`은 "출처를 실제로 봤다"는 주장이다. 근거가 비면 그 주장을 기록하지 않는다.
+            errors.append(f"{where}.basis: '조사함'으로 기록하려면 근거·출처가 있어야 합니다")
+    return errors
+
+
 def validate_config(config: dict) -> list[str]:
     """config를 검증하고 오류 메시지 목록을 돌려준다. 빈 목록이면 통과."""
     errors: list[str] = []
@@ -199,6 +235,17 @@ def validate_config(config: dict) -> list[str]:
                 f"channels[{channel.get('id', '?')}].workflow: 알 수 없는 값 "
                 f"'{channel['workflow']}' (허용: {sorted(workflows)})"
             )
+        # 1부(방향 파악)의 답들. 전부 선택 항목이라 없어도 되지만, 있으면 읽을 수 있는 값이어야 한다.
+        for field in DIRECTION_FIELDS:
+            if field in channel and (not isinstance(channel[field], str) or not channel[field].strip()):
+                errors.append(f"channels[{channel.get('id', '?')}].{field}: 비어 있지 않은 문자열이어야 합니다")
+        if "evidence" in channel and channel["evidence"] not in EVIDENCE_LEVELS:
+            errors.append(
+                f"channels[{channel.get('id', '?')}].evidence: 알 수 없는 값 "
+                f"'{channel['evidence']}' (허용: {sorted(EVIDENCE_LEVELS)})"
+            )
+        if "topics" in channel:
+            errors.extend(_topic_errors(channel.get("id", "?"), channel["topics"]))
 
     return errors
 

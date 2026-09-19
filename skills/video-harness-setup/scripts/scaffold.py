@@ -112,7 +112,8 @@ WORKFLOW_LABELS = {
     "footage-first": "찍은 영상 먼저",
     "per-episode": "회차마다 정함",
 }
-NO_WORKFLOW_LABEL = "(아직 정하지 않음)"
+NOT_SET_LABEL = "(아직 정하지 않음)"
+NO_WORKFLOW_LABEL = NOT_SET_LABEL
 STYLE_START_LABELS = {
     "reference": "레퍼런스 영상에서 뽑기",
     "preset": "기성 프리셋에서 고르기",
@@ -126,6 +127,28 @@ CONSISTENCY_LABELS = {
 }
 DEFAULT_STYLE_START = "later"
 DEFAULT_CONSISTENCY = "decide-later"
+
+# 채널의 `근거 규칙` 절. 인터뷰 1부에서 "틀린 말이 사람을 다치게 할 수 있는 분야"로
+# 확인되면 `strict`가 기록되고, 그 채널만 규칙이 세진다. 값이 없으면 `normal`이다.
+DEFAULT_EVIDENCE = "normal"
+NORMAL_EVIDENCE_RULE = (
+    "외부 자료는 출처를 기록하고 라이선스를 확인한다. 확인하지 않은 주장을 사실처럼 쓰지 않는다."
+)
+STRICT_EVIDENCE_RULE = """이 채널은 틀린 말이 사람을 다치게 할 수 있는 분야다. 아래를 지킨다.
+
+- 모든 사실·수치에 공신력 있는 출처를 `02_기획과자막/_양식/출처와제작기록.md`에 남긴다.
+- 출처를 못 찾은 내용은 대본에 쓰지 않는다.
+- 진단·치료·투자 지시처럼 들리는 단정 표현을 쓰지 않는다.
+- 필요한 경우 "전문가와 상담하라"는 안내를 넣는다."""
+EVIDENCE_RULES = {"normal": NORMAL_EVIDENCE_RULE, "strict": STRICT_EVIDENCE_RULE}
+
+# 인터뷰 2부에서 고른 주제 후보. `조사함`은 출처를 실제로 열어 본 것, `아이디어`는
+# 함께 떠올리기만 한 것이다(`harness_lib.TOPIC_STATUSES`와 같은 값).
+TOPIC_STATUS_LABELS = {"researched": "조사함", "idea": "아이디어"}
+TOPIC_EMPTY_NOTE = (
+    "아직 고른 주제가 없다. 에이전트에게 방향에 맞는 주제를 찾아 달라고 하면 후보를 모아 보여 준다. "
+    "그중 사용자가 고른 것만 이 표에 들어간다."
+)
 
 # 출발점(workflow)별 "작업 순서". `{sample}`에는 `rules.sample_seconds`가 들어간다 —
 # AGENTS.md가 읽는 값과 같은 자리(`_agents_values`)에서 가져와 두 문서가 어긋나지 않게 한다.
@@ -382,8 +405,11 @@ def _channel_values(config: dict, channel: dict) -> dict:
             "workflow_steps": workflow_steps(workflow, values["sample_seconds"]),
             "target_seconds": channel.get("target_seconds", ""),
             "language": channel.get("language", ""),
-            "concept": channel.get("concept", "(아직 정하지 않음)"),
+            "concept": channel.get("concept", NOT_SET_LABEL),
             "opening": channel.get("opening", ""),
+            # 1부(방향 파악)의 답. 아직 묻지 않은 것은 빈칸이 아니라 "정하지 않음"으로 남긴다.
+            **{field: channel.get(field) or NOT_SET_LABEL for field in h.DIRECTION_FIELDS},
+            "evidence_rules": EVIDENCE_RULES[channel.get("evidence") or DEFAULT_EVIDENCE],
             "style_start": STYLE_START_LABELS[channel.get("style_start") or DEFAULT_STYLE_START],
             "consistency": CONSISTENCY_LABELS[channel.get("consistency") or DEFAULT_CONSISTENCY],
         }
@@ -399,6 +425,16 @@ def _reference_rows(references: list[dict]) -> str:
         status_raw = ref.get("status", "")
         status = STATUS_LABELS.get(status_raw, status_raw)
         rows.append(f"| {i} | {location} | {likes} | {status} |")
+    return "\n".join(rows)
+
+
+def _topic_rows(topics: list[dict]) -> str:
+    """`_reference_rows`와 같은 방식으로 주제 후보 표의 줄들을 만든다."""
+    rows = []
+    for i, topic in enumerate(topics, start=1):
+        status_raw = topic.get("status", "")
+        status = TOPIC_STATUS_LABELS.get(status_raw, status_raw)
+        rows.append(f"| {i} | {topic.get('title', '')} | {topic.get('basis', '')} | {status} |")
     return "\n".join(rows)
 
 
@@ -467,6 +503,13 @@ def scaffold_channel(workspace: Path, config: dict, channel: dict) -> dict:
 
     worklist = h.render_template((templates / "작업목록.md.tmpl").read_text(encoding="utf-8"), values)
     write_if_absent(base / "02_기획과자막/작업목록.md", worklist, report)
+
+    topics = channel.get("topics", [])
+    topic_values = dict(values)
+    topic_values["topic_rows"] = _topic_rows(topics)
+    topic_values["topic_empty_note"] = "" if topics else TOPIC_EMPTY_NOTE
+    topic_list = h.render_template((templates / "주제_후보.md.tmpl").read_text(encoding="utf-8"), topic_values)
+    write_if_absent(base / "02_기획과자막/주제_후보.md", topic_list, report)
 
     provenance_note = (templates / "출처와제작기록.md.tmpl").read_text(encoding="utf-8")
     write_if_absent(base / "02_기획과자막/_양식/출처와제작기록.md", provenance_note, report)

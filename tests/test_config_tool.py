@@ -460,3 +460,97 @@ def test_set_rejects_an_unknown_rhythm_and_leaves_the_file_untouched(tmp_path, c
     assert ct.main(["set", str(tmp_path), "rules.script_rhythm", '"3·4조"']) == 1
     assert "script_rhythm" in capsys.readouterr().err
     assert (tmp_path / "harness.config.json").read_bytes() == before
+
+
+# --- 1부 방향 답과 2부에서 고른 주제 후보 ---
+
+
+def test_add_channel_stores_the_direction_answers(tmp_path):
+    _init(tmp_path)
+    assert (
+        _add_channel(
+            tmp_path,
+            "동네한바퀴",
+            "--audience", "30~40대 동네 주민",
+            "--scope", "가게 소개는 하고 광고성 리뷰는 하지 않는다",
+            "--expertise", "직접 다녀 본 사람",
+            "--tone", "차분하고 다정한 말투, 얼굴은 안 나온다",
+            "--platforms", "유튜브 쇼츠·인스타 릴스, 주 3회",
+            "--evidence", "strict",
+        )
+        == 0
+    )
+    channel = h.load_config(tmp_path)["channels"][0]
+    assert channel["audience"] == "30~40대 동네 주민"
+    assert channel["scope"].startswith("가게 소개는")
+    assert channel["expertise"] == "직접 다녀 본 사람"
+    assert channel["tone"].startswith("차분하고")
+    assert channel["platforms"].startswith("유튜브 쇼츠")
+    assert channel["evidence"] == "strict"
+
+
+def test_add_channel_leaves_the_direction_keys_out_when_not_asked_yet(tmp_path):
+    """묻지 않은 것은 기록하지 않는다 — 빈 값을 넣으면 '물어봤다'로 읽힌다."""
+    _init(tmp_path)
+    assert _add_channel(tmp_path, "동네한바퀴") == 0
+    channel = h.load_config(tmp_path)["channels"][0]
+    for key in ("audience", "scope", "expertise", "tone", "platforms", "evidence", "topics"):
+        assert key not in channel, key
+
+
+def test_add_channel_stores_researched_topics_and_ideas_apart(tmp_path):
+    _init(tmp_path)
+    assert (
+        _add_channel(
+            tmp_path,
+            "동네한바퀴",
+            "--topic", "골목 노포 세 곳::구청 상권 자료 https://example.com/data",
+            "--topic-idea", "비 오는 날 갈 만한 가게::사용자와 함께 떠올림",
+        )
+        == 0
+    )
+    topics = h.load_config(tmp_path)["channels"][0]["topics"]
+    assert topics[0] == {
+        "title": "골목 노포 세 곳",
+        "basis": "구청 상권 자료 https://example.com/data",
+        "status": "researched",
+    }
+    assert topics[1]["title"] == "비 오는 날 갈 만한 가게"
+    assert topics[1]["status"] == "idea"
+
+
+def test_add_channel_rejects_a_topic_without_a_title(tmp_path, capsys):
+    _init(tmp_path)
+    before = (tmp_path / "harness.config.json").read_text(encoding="utf-8")
+    assert _add_channel(tmp_path, "동네한바퀴", "--topic", "::근거만 있다") == 1
+    err = capsys.readouterr().err
+    assert "topics[0].title" in err
+    assert "문자열" in err
+    assert (tmp_path / "harness.config.json").read_text(encoding="utf-8") == before
+
+
+def test_add_channel_rejects_a_researched_topic_without_a_basis(tmp_path, capsys):
+    _init(tmp_path)
+    assert _add_channel(tmp_path, "동네한바퀴", "--topic", "근거 없는 주제") == 1
+    assert "topics[0].basis" in capsys.readouterr().err
+
+
+def test_set_allows_the_direction_fields_that_are_not_there_yet(tmp_path):
+    """이미 만든 채널에도 방향을 나중에 채울 수 있어야 한다(재실행 메뉴의 '채널 방향 다시 잡기')."""
+    _init(tmp_path)
+    _add_channel(tmp_path, "동네한바퀴")
+    pairs = [
+        ("audience", "40대 초보 러너"),
+        ("scope", "달리기 기초만 다룬다"),
+        ("expertise", "공부하며 전달"),
+        ("tone", "담담한 말투"),
+        ("platforms", "유튜브 쇼츠, 주 2회"),
+        ("evidence", "strict"),
+        ("topics", '[{"title": "무릎 통증", "basis": "대한정형외과학회 자료", "status": "researched"}]'),
+    ]
+    for key, raw in pairs:
+        assert ct.main(["set", str(tmp_path), f"channels.0.{key}", raw]) == 0
+    channel = h.load_config(tmp_path)["channels"][0]
+    assert channel["evidence"] == "strict"
+    assert channel["topics"][0]["status"] == "researched"
+    assert channel["audience"] == "40대 초보 러너"

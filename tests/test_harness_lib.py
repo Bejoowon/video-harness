@@ -194,3 +194,61 @@ def test_validate_rejects_unknown_rhythm():
     cfg = h.default_config()
     cfg["rules"]["script_rhythm"] = "3·4조"
     assert any("script_rhythm" in e for e in h.validate_config(cfg))
+
+
+# --- 1부 방향(audience·scope·expertise·tone·platforms)과 근거 규칙·주제 후보 ---
+
+
+def test_validate_accepts_the_optional_direction_fields():
+    cfg = h.default_config()
+    cfg["channels"] = [
+        _channel(
+            audience="30~40대 동네 주민",
+            scope="가게 소개는 하고 광고성 리뷰는 하지 않는다",
+            expertise="직접 다녀 본 사람",
+            tone="차분하고 다정한 말투",
+            platforms="유튜브 쇼츠, 주 3회",
+            evidence="strict",
+            topics=[{"title": "골목 노포 세 곳", "basis": "구청 상권 자료", "status": "researched"}],
+        )
+    ]
+    assert h.validate_config(cfg) == []
+    # 하나도 없는 채널(예전 설정)도 그대로 유효하다.
+    cfg["channels"] = [_channel()]
+    assert h.validate_config(cfg) == []
+
+
+def test_validate_rejects_empty_direction_strings():
+    cfg = h.default_config()
+    cfg["channels"] = [_channel(audience="   ", tone=12)]
+    errors = h.validate_config(cfg)
+    assert any("audience" in e for e in errors)
+    assert any("tone" in e for e in errors)
+
+
+def test_validate_rejects_unknown_evidence_level():
+    cfg = h.default_config()
+    cfg["channels"] = [_channel(evidence="아주엄격")]
+    assert any("evidence" in e for e in h.validate_config(cfg))
+
+
+def test_validate_rejects_malformed_topics():
+    cfg = h.default_config()
+    cfg["channels"] = [_channel(topics=[{"title": "", "basis": "근거", "status": "idea"}])]
+    assert any("topics[0].title" in e for e in h.validate_config(cfg))
+
+    cfg["channels"] = [_channel(topics=[{"title": "제목", "basis": "근거", "status": "찾는중"}])]
+    assert any("topics[0].status" in e for e in h.validate_config(cfg))
+
+    cfg["channels"] = [_channel(topics={"title": "제목"})]
+    assert any("topics" in e for e in h.validate_config(cfg))
+
+
+def test_validate_requires_a_basis_for_a_researched_topic():
+    """`조사함`은 출처를 봤다는 주장이다. 근거가 비면 그 주장을 기록하지 않는다."""
+    cfg = h.default_config()
+    cfg["channels"] = [_channel(topics=[{"title": "제목", "basis": "", "status": "researched"}])]
+    assert any("topics[0].basis" in e for e in h.validate_config(cfg))
+    # 조사하지 않은 아이디어는 메모가 비어 있어도 된다.
+    cfg["channels"] = [_channel(topics=[{"title": "제목", "basis": "", "status": "idea"}])]
+    assert h.validate_config(cfg) == []

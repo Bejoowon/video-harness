@@ -261,12 +261,26 @@ def _workflow_item(workspace: Path, index: int, name: str) -> dict:
     return _item(f"{name} 출발점", "warn", detail, fix)
 
 
+def _direction_item(name: str) -> dict:
+    """방향(시청자·범위)이 하나도 기록되지 않은 채널을 `주의`로 알린다.
+
+    방향은 사용자만 답할 수 있다. 그래서 조치가 복사해 실행할 명령이 아니라 "다시
+    물어보라"는 안내다 — 값이 미리 박힌 명령을 주면 에이전트가 그것을 그대로 실행해
+    사용자 대신 방향을 정해 버린다(이번 인터뷰 개편이 막으려는 바로 그 일이다).
+    """
+    detail = "채널 방향이 기록되지 않았습니다 — 시청자와 다루는 범위가 둘 다 비어 있습니다"
+    fix = '재실행 메뉴의 "채널 방향 다시 잡기"로 방향 질문(1부)을 사용자에게 다시 하세요'
+    return _item(f"{name} 방향", "warn", detail, fix)
+
+
 def _channel_items(workspace: Path, config: dict) -> list[dict]:
     items: list[dict] = []
     for index, channel in enumerate(config.get("channels", [])):
         name = channel.get("name", "")
         if not channel.get("workflow"):
             items.append(_workflow_item(workspace, index, name))
+        if not channel.get("audience") and not channel.get("scope"):
+            items.append(_direction_item(name))
         label = f"{name} frame.md"
         frame_path = workspace / name / "03_편집프로젝트" / "_채널공용" / "frame.md"
 

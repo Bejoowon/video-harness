@@ -561,3 +561,96 @@ def test_copy_tools_always_delivers_the_rhythm_checker(tmp_path):
     c = cfg(tmp_path)
     s.copy_tools(tmp_path, c)
     assert (tmp_path / "도구/script/check_rhythm.py").is_file()
+
+
+# --- 1부 방향과 근거 규칙이 채널기준.md에 들어간다 ---
+
+
+def _guide_with(tmp_path, **extra):
+    c = cfg(tmp_path)
+    c["channels"][0].update(extra)
+    s.scaffold_channel(tmp_path, c, c["channels"][0])
+    return (tmp_path / "동네한바퀴/채널기준.md").read_text(encoding="utf-8")
+
+
+def test_direction_section_carries_the_first_part_answers(tmp_path):
+    guide = _guide_with(
+        tmp_path,
+        audience="30~40대 동네 주민",
+        scope="가게 소개는 하고 광고성 리뷰는 하지 않는다",
+        expertise="직접 다녀 본 사람",
+        tone="차분하고 다정한 말투",
+        platforms="유튜브 쇼츠, 주 3회",
+    )
+    assert "## 방향" in guide
+    for value in (
+        "30~40대 동네 주민",
+        "가게 소개는 하고 광고성 리뷰는 하지 않는다",
+        "직접 다녀 본 사람",
+        "차분하고 다정한 말투",
+        "유튜브 쇼츠, 주 3회",
+    ):
+        assert value in guide, value
+
+
+def test_direction_section_marks_what_was_not_decided(tmp_path):
+    guide = _guide_with(tmp_path)
+    direction = guide[guide.index("## 방향") : guide.index("## 근거 규칙")]
+    assert direction.count(s.NOT_SET_LABEL) == 5
+
+
+def test_strict_evidence_writes_the_strict_rules(tmp_path):
+    guide = _guide_with(tmp_path, evidence="strict")
+    assert "## 근거 규칙" in guide
+    assert "출처를 못 찾은 내용은 대본에 쓰지 않는다" in guide
+    assert "전문가와 상담" in guide
+    assert "출처와제작기록.md" in guide
+
+
+def test_normal_evidence_keeps_only_the_general_sentence(tmp_path):
+    guide = _guide_with(tmp_path)
+    assert "## 근거 규칙" in guide
+    assert "출처를 못 찾은 내용은 대본에 쓰지 않는다" not in guide
+    assert "출처를 기록하고 라이선스를 확인한다" in guide
+
+
+# --- 2부에서 고른 주제가 채널의 주제_후보.md가 된다 ---
+
+
+def _topics_file(tmp_path, topics=None):
+    c = cfg(tmp_path)
+    if topics is not None:
+        c["channels"][0]["topics"] = topics
+    s.scaffold_channel(tmp_path, c, c["channels"][0])
+    return (tmp_path / "동네한바퀴/02_기획과자막/주제_후보.md").read_text(encoding="utf-8")
+
+
+def test_topic_candidates_are_listed_with_basis_and_status(tmp_path):
+    listing = _topics_file(
+        tmp_path,
+        [
+            {"title": "골목 노포 세 곳", "basis": "구청 상권 자료", "status": "researched"},
+            {"title": "비 오는 날 갈 만한 가게", "basis": "사용자와 함께 떠올림", "status": "idea"},
+        ],
+    )
+    assert "골목 노포 세 곳" in listing and "구청 상권 자료" in listing and "조사함" in listing
+    assert "비 오는 날 갈 만한 가게" in listing and "아이디어" in listing
+
+
+def test_topic_candidates_have_an_empty_state(tmp_path):
+    listing = _topics_file(tmp_path)
+    assert "아직" in listing
+
+
+def test_topic_candidates_file_is_not_overwritten(tmp_path):
+    _topics_file(tmp_path)
+    path = tmp_path / "동네한바퀴/02_기획과자막/주제_후보.md"
+    path.write_text("내가 고친 목록", encoding="utf-8")
+    assert _topics_file(tmp_path) == "내가 고친 목록"
+
+
+def test_agents_md_ties_an_episode_to_the_direction_and_an_agreed_topic(tmp_path):
+    s.scaffold_workspace(tmp_path, cfg(tmp_path))
+    text = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+    assert "주제_후보.md" in text
+    assert "동의하지 않은 주제로 회차를 시작하지 않는다" in text

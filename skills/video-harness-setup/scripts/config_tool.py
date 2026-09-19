@@ -24,8 +24,20 @@ KINDS = ["narration-shorts", "footage-shorts", "longform-vlog"]
 STYLE_STARTS = ["reference", "preset", "manual", "later"]
 CONSISTENCY_LEVELS = ["fixed", "variation", "decide-later"]
 WORKFLOWS = ["script-first", "footage-first", "per-episode"]
+EVIDENCE_LEVELS = sorted(h.EVIDENCE_LEVELS)
 # 채널에 아직 없어도 `set`으로 새로 넣을 수 있는 선택 항목 (validate_config가 허용하는 것들).
-OPTIONAL_CHANNEL_FIELDS = {"concept", "opening", "references", "style_start", "consistency", "workflow"}
+# 1부(방향 파악)의 답들이 여기 들어 있어야 이미 만든 채널에도 방향을 나중에 채울 수 있다.
+OPTIONAL_CHANNEL_FIELDS = {
+    "concept",
+    "opening",
+    "references",
+    "style_start",
+    "consistency",
+    "workflow",
+    *h.DIRECTION_FIELDS,
+    "evidence",
+    "topics",
+}
 # 그 밖의 자리에서 아직 없어도 `set`으로 새로 넣을 수 있는 선택 항목. 키는 부모 경로
 # (점으로 구분한 튜플)다. `modules.voice.model_path`는 보통 `install_module.py run`이
 # 로컬 목소리 복제 모델을 내려받은 뒤 자동으로 채우지만, 이미 받아 둔 모델을 재사용할
@@ -212,6 +224,16 @@ def parse_reference(raw: str) -> dict:
     return {"url": location.strip(), "likes": likes.strip(), "status": "pending"}
 
 
+def parse_topic(raw: str, status: str) -> dict:
+    """`<제목>::<근거·출처>`를 주제 후보 항목으로 바꾼다. `parse_reference`와 같은 형식이다.
+
+    값이 이상하면(제목이 비었거나, `조사함`인데 근거가 없으면) 여기서 막지 않고
+    `validate_config`가 막는다 — 검증은 한 곳에서만 한다(design §7).
+    """
+    title, _, basis = raw.partition("::")
+    return {"title": title.strip(), "basis": basis.strip(), "status": status}
+
+
 def _unique_id(base: str, taken: set) -> str:
     if base not in taken:
         return base
@@ -269,12 +291,24 @@ def cmd_add_channel(args: argparse.Namespace) -> int:
         ("opening", args.opening),
         ("style_start", args.style_start),
         ("consistency", args.consistency),
+        # 1부(방향 파악)의 답. 묻지 않은 항목은 키 자체를 넣지 않는다 — 빈 값을 넣으면
+        # 나중에 doctor와 `채널기준.md`가 "물어봤는데 비어 있다"로 읽는다.
+        ("audience", args.audience),
+        ("scope", args.scope),
+        ("expertise", args.expertise),
+        ("tone", args.tone),
+        ("platforms", args.platforms),
+        ("evidence", args.evidence),
     )
     for key, value in optional:
         if value:
             channel[key] = value
     if args.reference:
         channel["references"] = [parse_reference(r) for r in args.reference]
+    topics = [parse_topic(t, "researched") for t in args.topic or []]
+    topics += [parse_topic(t, "idea") for t in args.topic_idea or []]
+    if topics:
+        channel["topics"] = topics
 
     channels.append(channel)
     failed = _save_if_valid(workspace, config)
@@ -362,6 +396,29 @@ def build_parser() -> argparse.ArgumentParser:
         action="append",
         metavar="URL::마음에 드는 점",
         help="여러 번 줄 수 있다",
+    )
+    # 1부(방향 파악)의 답. 값은 사람이 쓴 문장이라 열거하지 않는다.
+    channel_parser.add_argument("--audience", help="누가 보면 좋겠는지 (나이대·상황·고민)")
+    channel_parser.add_argument("--scope", help="무엇을 다루고 무엇은 다루지 않는지")
+    channel_parser.add_argument("--expertise", help="이 분야와 어떤 관계인지")
+    channel_parser.add_argument("--tone", help="말투·분위기, 얼굴·목소리가 나오는지")
+    channel_parser.add_argument("--platforms", help="어디에 얼마나 자주 올리는지")
+    channel_parser.add_argument(
+        "--evidence",
+        choices=EVIDENCE_LEVELS,
+        help="근거 규칙. 틀린 말이 사람을 다치게 할 수 있는 분야면 strict",
+    )
+    channel_parser.add_argument(
+        "--topic",
+        action="append",
+        metavar="제목::근거·출처",
+        help="2부에서 조사해 사용자가 고른 주제. 여러 번 줄 수 있다",
+    )
+    channel_parser.add_argument(
+        "--topic-idea",
+        action="append",
+        metavar="제목::메모",
+        help="조사하지 않고 함께 떠올린 아이디어. 여러 번 줄 수 있다",
     )
 
     remove_parser = sub.add_parser("remove-channel", help="채널을 설정에서 뺀다 (폴더는 그대로 둔다)")
