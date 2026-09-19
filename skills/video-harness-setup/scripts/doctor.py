@@ -247,7 +247,12 @@ def _workflow_item(workspace: Path, index: int, name: str) -> dict:
     짚어 복사해 실행할 수 있게 한다.
     """
     fix = h.script_fix("config_tool.py", "set", f'"{workspace}"', f"channels.{index}.workflow", "footage-first")
-    detail = "출발점이 정해지지 않았습니다 (footage-first · script-first · per-episode 중 하나)"
+    # 조치 명령은 그대로 실행되도록 값 하나(footage-first)를 넣어 두었다. 고르지 않은 값이
+    # 들어가지 않게, 맞는 값으로 바꿔 실행하라고 함께 알린다.
+    detail = (
+        "출발점이 정해지지 않았습니다 — 조치 명령 끝의 footage-first를 "
+        "footage-first(찍은 영상 먼저) · script-first(대본 먼저) · per-episode(회차마다 정함) 중 맞는 값으로 바꿔 실행하세요"
+    )
     return _item(f"{name} 출발점", "warn", detail, fix)
 
 

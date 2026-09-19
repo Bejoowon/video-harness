@@ -307,6 +307,9 @@ def test_channel_without_workflow_is_warn_with_a_runnable_fix(tmp_path):
     item = by["둘째채널 출발점"]
     assert item["state"] == "warn"
     assert "출발점이 정해지지 않았습니다" in item["detail"]
+    # 조치 명령에 미리 들어간 값을 그대로 쓰지 말고 바꿔 실행하라는 안내가 있어야 한다.
+    assert "맞는 값으로 바꿔" in item["detail"]
+    assert "script-first" in item["detail"] and "per-episode" in item["detail"]
     # 실제 목록 번호(두 번째 채널 = 1)를 짚어야 그대로 복사해 실행할 수 있다.
     assert "channels.1.workflow" in item["fix"]
     assert f'"{h.scripts_dir() / "config_tool.py"}"' in item["fix"]
