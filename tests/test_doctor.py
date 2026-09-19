@@ -331,3 +331,12 @@ def test_missing_workflow_does_not_add_a_blocking_problem(tmp_path):
 
     assert any(i["item"].endswith("출발점") for i in without)
     assert fails(without) == fails(with_workflow)
+
+
+def test_missing_rhythm_checker_fixes_via_scaffold(tmp_path):
+    c = h.default_config()
+    items = d.diagnose(tmp_path, c, {"tools": {}, "missing_required": [], "editors": {}})
+    by = {i["item"]: i for i in items}
+    item = by["도구/script/check_rhythm.py"]
+    assert item["state"] == "fail"
+    assert "scaffold.py" in item["fix"]

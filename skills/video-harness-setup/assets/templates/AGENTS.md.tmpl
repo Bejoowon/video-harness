@@ -22,6 +22,7 @@
     ├── transcribe/
     ├── stock/search.py
     ├── style/                 build_tokens.py · check_style.py
+    ├── script/check_rhythm.py 대본의 마디·음절을 세어 보여 주는 보조 도구
     ├── export/                편집기 넘기기 스크립트. 편집기를 고른 경우만
     ├── chrome-noaudio.py
     └── logs/
@@ -35,6 +36,7 @@
 - 음성: {{voice_mode}}
 - 편집기 넘기기: {{handoff_editor}}
 - 샘플 길이: {{sample_seconds}}초
+- 대본 운율: {{script_rhythm_label}}
 - 버전 규칙: {{versioning_rule}}
 
 ## 작업 순서
@@ -46,6 +48,10 @@
 원본 확인 → 레퍼런스 분석 → 기획·대본 → 음성과 {{sample_seconds}}초 샘플 → 본편 편집 → 검수 → 버전 저장.
 
 샘플을 먼저 만든다. 새 스타일은 본편 전에 짧은 샘플로 확인한다.
+
+## 대본 쓰기
+
+{{script_rhythm_rule}}
 
 ## 음성과 자막
 

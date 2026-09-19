@@ -155,9 +155,9 @@ def _scaffold_trace_item(workspace: Path, label: str, path: Path) -> dict:
 def _scaffold_trace_items(workspace: Path, config: dict) -> list[dict]:
     """`scaffold.py`의 `copy_tools`가 config를 보고 `도구/`에 복사하는 흔적들을 확인한다.
 
-    조건은 `scaffold.copy_tools`의 로직을 그대로 따른다: `style`과 `transcribe/
-    transcribe.py`는 모듈 선택과 무관하게 항상 복사되고, 나머지는 각 config 값이
-    선택됐을 때만 복사된다.
+    조건은 `scaffold.copy_tools`의 로직을 그대로 따른다: `style`·`script`와
+    `transcribe/transcribe.py`는 모듈 선택과 무관하게 항상 복사되고, 나머지는 각
+    config 값이 선택됐을 때만 복사된다.
     """
     items: list[dict] = []
     modules = config.get("modules", {})
@@ -168,6 +168,11 @@ def _scaffold_trace_items(workspace: Path, config: dict) -> list[dict]:
 
     items.append(
         _scaffold_trace_item(workspace, "도구/style/check_style.py", workspace / "도구" / "style" / "check_style.py")
+    )
+    items.append(
+        _scaffold_trace_item(
+            workspace, "도구/script/check_rhythm.py", workspace / "도구" / "script" / "check_rhythm.py"
+        )
     )
     items.append(
         _scaffold_trace_item(

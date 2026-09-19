@@ -56,6 +56,51 @@ VERSIONING_LABELS = {
     "vN-then-final": "작업 중에는 _vN으로 올리고, 확정되면 최종본만 남기고 삭제기록을 쓴다",
     "keep-all": "모든 버전을 보존한다",
 }
+SCRIPT_RHYTHM_LABELS = {"meter": "3·4조 네 마디 (기본)", "free": "자유"}
+DEFAULT_SCRIPT_RHYTHM = "meter"
+
+# 대본 운율 규칙의 단일 원본. AGENTS.md의 "대본 쓰기" 절이 이 문장 그대로 렌더된다.
+# 참고 문서(`references/script-rhythm.md`)와 채널의 대본 양식도 같은 말을 쓴다.
+METER_RULE = """- 내레이션 대본은 읽었을 때 운율이 느껴지게 쓴다. 한 줄을 **마디**(한 호흡에 읽는 덩어리, 보통 한두 어절)로 나누고, 마디는 **3~4음절이 기본, 5음절까지 허용**한다.
+- 한 줄은 **네 마디가 기본**이다(`3/4/4/3`, `4/4/4/3`, `3/4/3/4`, `4/4/4/4` …). 짧게 끊을 때는 **두 마디**(`3/4`, `4/4`, `4/5`)도 좋다. 세 마디도 허용한다.
+- **뜻이 먼저다.** 운율을 맞추려고 말이 어색해지거나 사실이 바뀌면 안 된다. 고유명사·숫자·인용 때문에 안 맞는 줄은 그대로 둔다. 목표는 "대부분의 줄"이지 "모든 줄"이 아니다.
+- 대본 파일에서는 마디 경계를 ` / `로 표시한다. TTS 입력·자막으로 넘길 때는 ` / `를 뺀다.
+- 숫자·영문·기호는 **읽는 소리대로 한글로** 쓴다(`3개` → `세 개`, `AI` → `에이아이`). 음절을 셀 수 있고 TTS도 정확히 읽는다.
+- 적용 범위: 에이전트가 **새로 쓰는** 내레이션·보충 내레이션·자막 문구. 사람이 실제로 말한 촬영본의 전사 결과는 운율에 맞추려고 고쳐 쓰지 않는다.
+- 채널의 `채널기준.md`에 다른 말투·운율 규칙이 적혀 있으면 그쪽을 따른다.
+
+예) `오늘은 / 우리 동네 / 숨은 맛집 / 가 볼게`는 3/4/4/3, `딱 하나만 / 기억하세요`는 4/5다.
+
+파이썬으로 `도구/script/check_rhythm.py <대본 파일>`을 돌리면 줄마다 마디와 음절을 세어 보여 준다. 합격·불합격을 가르는 검사가 아니라 운율이 처지는 줄을 찾아 주는 보조 도구다 — 비율이 낮아도 뜻이 먼저다. `도구/script/check_rhythm.py <대본 파일> --strip`은 마디 표시 ` / `를 뺀 대본만 내놓는다. TTS 원고와 자막에는 그것을 쓴다."""
+FREE_RULE = "이 작업 공간은 대본에 운율 규칙을 적용하지 않는다. 자연스럽게 쓴다."
+SCRIPT_RHYTHM_RULES = {"meter": METER_RULE, "free": FREE_RULE}
+
+# 채널의 `대본_양식.md`에 들어가는 짧은 판. 운율을 쓰지 않는 작업 공간에서는 빈
+# 문자열이라 양식이 그냥 빈 대본 틀로 남는다.
+METER_FORM_BLOCK = """## 운율
+
+- 한 줄을 **마디**(한 호흡에 읽는 덩어리, 보통 한두 어절)로 나누고, 마디는 **3~4음절이 기본, 5음절까지 허용**한다.
+- 한 줄은 **네 마디가 기본**이다. 짧게 끊을 때는 **두 마디**도 좋다.
+- **뜻이 먼저다.** 운율을 맞추려고 말이 어색해지거나 사실이 바뀌면 안 된다. 안 맞는 줄은 그대로 둔다.
+- 마디 경계는 ` / `로 표시하고, TTS·자막으로 넘길 때 뺀다.
+- 숫자·영문은 읽는 소리대로 한글로 쓴다(`3개` → `세 개`, `AI` → `에이아이`).
+
+```
+오늘은 / 우리 동네 / 숨은 맛집 / 가 볼게     3/4/4/3
+냉장고에 / 남은 재료 / 이것만은 / 꼭 넣어     4/4/4/3
+딱 하나만 / 기억하세요                       4/5
+```
+
+작업 공간 루트에서 세어 보고, 넘길 때는 마디 표시를 뺀다.
+
+```
+python3 도구/script/check_rhythm.py <대본 파일>
+python3 도구/script/check_rhythm.py <대본 파일> --strip
+```
+
+"""
+SCRIPT_RHYTHM_FORM_BLOCKS = {"meter": METER_FORM_BLOCK, "free": ""}
+
 STATUS_LABELS = {"pending": "미분석", "done": "분석 완료"}
 KIND_LABELS = {
     "narration-shorts": "내레이션 쇼츠",
@@ -280,6 +325,12 @@ def _copy_asset_dir(src: Path, dest: Path, report: dict) -> list[str]:
     return report["created"][before:]
 
 
+def script_rhythm_of(config: dict) -> str:
+    """설정의 대본 운율. 이 키가 없는 예전 설정은 기본값 `meter`로 본다."""
+    value = config.get("rules", {}).get("script_rhythm")
+    return value if value in SCRIPT_RHYTHM_LABELS else DEFAULT_SCRIPT_RHYTHM
+
+
 def _agents_values(config: dict) -> dict:
     modules = config.get("modules", {})
     rules = config.get("rules", {})
@@ -287,6 +338,7 @@ def _agents_values(config: dict) -> dict:
     voice_mode = modules.get("voice", {}).get("mode")
     handoff_editor = modules.get("handoff", {}).get("editor")
     versioning = rules.get("versioning")
+    script_rhythm = script_rhythm_of(config)
     return {
         "workspace_name": config.get("workspace", {}).get("name", ""),
         "render_engine": RENDER_ENGINE_LABELS.get(engine, engine or ""),
@@ -294,6 +346,8 @@ def _agents_values(config: dict) -> dict:
         "handoff_editor": HANDOFF_EDITOR_LABELS.get(handoff_editor, handoff_editor or ""),
         "sample_seconds": rules.get("sample_seconds", ""),
         "versioning_rule": VERSIONING_LABELS.get(versioning, versioning or ""),
+        "script_rhythm_label": SCRIPT_RHYTHM_LABELS[script_rhythm],
+        "script_rhythm_rule": SCRIPT_RHYTHM_RULES[script_rhythm],
     }
 
 
@@ -420,6 +474,11 @@ def scaffold_channel(workspace: Path, config: dict, channel: dict) -> dict:
     provenance_json = (templates / "provenance.json").read_text(encoding="utf-8")
     write_if_absent(base / "02_기획과자막/_양식/provenance.json", provenance_json, report)
 
+    form_values = dict(values)
+    form_values["script_rhythm_block"] = SCRIPT_RHYTHM_FORM_BLOCKS[script_rhythm_of(config)]
+    script_form = h.render_template((templates / "대본_양식.md.tmpl").read_text(encoding="utf-8"), form_values)
+    write_if_absent(base / "02_기획과자막/_양식/대본_양식.md", script_form, report)
+
     references = channel.get("references", [])
     ref_values = dict(values)
     ref_values["reference_rows"] = _reference_rows(references)
@@ -469,7 +528,8 @@ def copy_tools(workspace: Path, config: dict) -> dict:
     sources = modules.get("sources", [])
     handoff_editor = modules.get("handoff", {}).get("editor")
 
-    dir_items = ["style"]
+    # `script`(대본 운율 검사기)와 `style`은 모듈 선택과 무관하게 늘 복사한다.
+    dir_items = ["script", "style"]
     if "stock" in sources:
         dir_items.append("stock")
     dir_items.append("transcribe")

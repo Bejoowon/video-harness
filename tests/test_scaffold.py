@@ -470,3 +470,94 @@ def test_agents_md_defers_the_work_order_to_each_channel(tmp_path):
     # 채널에 순서가 없을 때 쓰는 공통 순서는 그대로 남아 있어야 한다.
     assert "원본 확인 → 레퍼런스 분석 → 기획·대본" in text
     assert "샘플을 먼저 만든다" in text
+
+
+# --- 대본 운율(script_rhythm): 새로 쓰는 내레이션의 기본값 ---
+
+
+def _agents_md(tmp_path, script_rhythm=...):
+    c = cfg(tmp_path)
+    if script_rhythm is ...:
+        pass
+    elif script_rhythm is None:
+        del c["rules"]["script_rhythm"]
+    else:
+        c["rules"]["script_rhythm"] = script_rhythm
+    s.scaffold_workspace(tmp_path, c)
+    return (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
+
+
+def _rhythm_section(text):
+    """AGENTS.md의 "대본 쓰기" 절만 떼어 본다 (폴더 구조 목록과 섞이지 않게)."""
+    assert text.index("## 대본 쓰기") < text.index("## 음성과 자막")
+    return text.split("## 대본 쓰기", 1)[1].split("## 음성과 자막", 1)[0]
+
+
+def test_agents_md_carries_the_rhythm_rule_by_default(tmp_path):
+    text = _agents_md(tmp_path)
+    assert "- 대본 운율: 3·4조 네 마디 (기본)" in text
+    section = _rhythm_section(text)
+    assert "3~4음절이 기본, 5음절까지 허용" in section
+    assert "네 마디가 기본" in section
+    assert "뜻이 먼저다" in section
+    # 보조 도구지 관문이 아니다. 실제 CLI 모양과 `--strip`이 함께 적혀 있어야 한다.
+    assert "도구/script/check_rhythm.py" in section
+    assert "--strip" in section
+
+
+def test_a_config_without_the_key_is_treated_as_meter(tmp_path):
+    assert _agents_md(tmp_path, None) == _agents_md(tmp_path / "again", "meter")
+
+
+def test_free_turns_the_rule_into_one_sentence(tmp_path):
+    text = _agents_md(tmp_path, "free")
+    assert "- 대본 운율: 자유" in text
+    section = _rhythm_section(text)
+    assert "운율 규칙을 적용하지 않는다" in section
+    assert "3~4음절" not in section
+    assert "check_rhythm.py" not in section
+
+
+def test_channel_guide_records_the_rhythm_with_an_override_note(tmp_path):
+    guide = _channel_guide(tmp_path)
+    assert "- 대본 운율: 3·4조 네 마디 (기본) (이 채널만 다르게 하려면 여기에 적는다)" in guide
+
+
+def _script_form(tmp_path, script_rhythm=None):
+    c = cfg(tmp_path)
+    if script_rhythm is not None:
+        c["rules"]["script_rhythm"] = script_rhythm
+    s.scaffold_channel(tmp_path, c, c["channels"][0])
+    return (tmp_path / "동네한바퀴/02_기획과자막/_양식/대본_양식.md").read_text(encoding="utf-8")
+
+
+def test_script_form_sits_next_to_the_provenance_form_with_the_rule_and_examples(tmp_path):
+    form = _script_form(tmp_path)
+    assert (tmp_path / "동네한바퀴/02_기획과자막/_양식/출처와제작기록.md").is_file()
+    assert "동네한바퀴" in form
+    assert "뜻이 먼저다" in form
+    for example in ("오늘은 / 우리 동네 / 숨은 맛집 / 가 볼게", "냉장고에 / 남은 재료 / 이것만은 / 꼭 넣어", "딱 하나만 / 기억하세요"):
+        assert example in form, example
+    assert "3/4/4/3" in form and "4/5" in form
+    assert "check_rhythm.py" in form and "--strip" in form
+
+
+def test_script_form_is_plain_when_the_workspace_writes_freely(tmp_path):
+    form = _script_form(tmp_path, "free")
+    assert "동네한바퀴" in form
+    assert "운율" not in form
+    assert "check_rhythm.py" not in form
+
+
+def test_script_form_is_never_overwritten(tmp_path):
+    _script_form(tmp_path)
+    path = tmp_path / "동네한바퀴/02_기획과자막/_양식/대본_양식.md"
+    path.write_text("내가 고친 대본 양식", encoding="utf-8")
+    _script_form(tmp_path)
+    assert path.read_text(encoding="utf-8") == "내가 고친 대본 양식"
+
+
+def test_copy_tools_always_delivers_the_rhythm_checker(tmp_path):
+    c = cfg(tmp_path)
+    s.copy_tools(tmp_path, c)
+    assert (tmp_path / "도구/script/check_rhythm.py").is_file()
