@@ -43,6 +43,15 @@ _LIST_MARKER_RE = re.compile(r"^[-*]\s+")
 _SPEAKER_RE = re.compile(r"^[^\s:/]{1,10}:\s+")
 _ASCII_WORD_RE = re.compile(r"[0-9A-Za-z]")
 _MARK_RE = re.compile(r"\s*/\s*")
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
+_FENCE_RE = re.compile(r"^(```|~~~)")
+
+# 대본 양식을 복사해 쓴 파일은 안내문·예시·명령어가 함께 들어 있다. 제목이 이 이름인
+# 구역이 있으면 그 아래만 대본으로 본다 — 안내문이 표에 섞이거나 TTS 원고로 나가면 안 된다.
+SCRIPT_HEADING = "대본"
+PLACEHOLDER = "(여기에 쓴다)"
+SCOPE_SECTION = "section"
+SCOPE_WHOLE = "whole-file"
 
 
 def syllables(text: str) -> int:
@@ -54,6 +63,52 @@ def is_skipped(line: str) -> bool:
     """빈 줄과 `#`으로 시작하는 줄(메모·마크다운 제목)은 아예 보지 않는다."""
     stripped = line.strip()
     return not stripped or stripped.startswith("#")
+
+
+def script_lines(text: str) -> tuple[list[tuple[int, str]], str]:
+    """대본에 해당하는 줄만 (원래 줄 번호, 내용)으로 돌려준다. 둘째 값은 본 범위다.
+
+    `## 대본` 같은 제목이 있으면 그 아래부터 같은 수준(또는 더 높은 수준)의 다음 제목
+    전까지만 대본이다. 없으면 파일 전체가 대본이다. 어느 쪽이든 제목·`#` 메모·코드
+    블록·빈 양식 자리표시는 뺀다. 빈 줄은 문단 나눔으로 쓰이므로 내용이 빈 채로 남긴다.
+    """
+    lines = text.splitlines()
+    has_section = any(
+        (m := _HEADING_RE.match(line.strip())) and m.group(2) == SCRIPT_HEADING for line in lines
+    )
+
+    picked: list[tuple[int, str]] = []
+    inside = not has_section
+    section_level = 0
+    fence: str | None = None
+
+    for number, raw in enumerate(lines, start=1):
+        stripped = raw.strip()
+
+        if fence is not None:
+            if stripped.startswith(fence):
+                fence = None
+            continue
+        fence_match = _FENCE_RE.match(stripped)
+        if fence_match:
+            fence = fence_match.group(1)
+            continue
+
+        heading = _HEADING_RE.match(stripped)
+        if heading:
+            level = len(heading.group(1))
+            if has_section:
+                if heading.group(2) == SCRIPT_HEADING:
+                    inside, section_level = True, level
+                elif inside and level <= section_level:
+                    inside = False
+            continue
+
+        if not inside or stripped.startswith("#") or stripped == PLACEHOLDER:
+            continue
+        picked.append((number, raw))
+
+    return picked, (SCOPE_SECTION if has_section else SCOPE_WHOLE)
 
 
 def strip_prefix(line: str) -> str:
@@ -102,7 +157,8 @@ def analyze(
     rows: list[dict] = []
     tally = {GRADE_OK: 0, GRADE_TOLERATED: 0, GRADE_OFF: 0, GRADE_UNMARKED: 0, GRADE_SPELL_OUT: 0}
 
-    for number, raw in enumerate(text.splitlines(), start=1):
+    picked, scope = script_lines(text)
+    for number, raw in picked:
         if is_skipped(raw):
             continue
         shown = raw.strip()
@@ -142,20 +198,28 @@ def analyze(
         "unmarked": tally[GRADE_UNMARKED],
         "spell_out": tally[GRADE_SPELL_OUT],
         "rate": rate,
+        "scope": scope,
     }
 
 
 def strip_marks(text: str) -> str:
-    """마디 경계 ` / `를 빼고 한 칸 띄어쓰기로 되돌린다. 줄 나눔은 그대로 둔다.
+    """대본 줄만 골라 마디 경계 ` / `를 빼고 한 칸 띄어쓰기로 되돌린다.
 
-    TTS 원고와 자막으로 넘길 때 쓴다. 마디 표시만 빼고 다른 것은 손대지 않는다.
+    TTS 원고와 자막으로 넘길 때 쓴다. 제목·메모·코드 블록·대본 구역 밖의 글은 내보내지
+    않는다(읽히면 안 되는 글이다). 목록 기호도 뗀다. 빈 줄은 문단 나눔으로 하나만 남긴다.
     """
-    lines = []
-    for line in text.splitlines():
-        cleaned = _MARK_RE.sub(" ", line)
-        cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
-        lines.append(cleaned.rstrip())
-    return "\n".join(lines) + ("\n" if text.endswith("\n") else "")
+    picked, _scope = script_lines(text)
+    out: list[str] = []
+    for _number, raw in picked:
+        if not raw.strip():
+            if out and out[-1] != "":
+                out.append("")
+            continue
+        cleaned = _MARK_RE.sub(" ", _LIST_MARKER_RE.sub("", raw.strip(), count=1))
+        out.append(re.sub(r"[ \t]{2,}", " ", cleaned).strip())
+    while out and out[-1] == "":
+        out.pop()
+    return "\n".join(out) + ("\n" if out else "")
 
 
 def _percent(rate: float | None) -> str:
@@ -174,6 +238,10 @@ def _pad(text: str, width: int) -> str:
 def print_report(result: dict, path: Path) -> None:
     rows = result["lines"]
     print(f"{path} — 줄마다 마디와 음절을 세어 봤습니다.")
+    if result.get("scope") == SCOPE_SECTION:
+        print(f'"## {SCRIPT_HEADING}" 아래만 셌습니다.')
+    else:
+        print("파일 전체를 셌습니다.")
     print()
     if not rows:
         print("볼 줄이 없습니다.")

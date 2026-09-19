@@ -5,6 +5,7 @@
 함께 고정한다.
 """
 import json
+from pathlib import Path
 
 import check_rhythm as cr
 
@@ -184,3 +185,69 @@ def test_the_tool_is_standalone_and_stdlib_only():
     assert "harness_lib" not in source
     for third_party in ("import yaml", "import requests", "import numpy"):
         assert third_party not in source, third_party
+
+
+# --- 대본 구역: 양식을 복사해 쓴 파일에서는 "## 대본" 아래만 대본이다 -------------------------
+
+TEMPLATE = Path(__file__).resolve().parents[1] / "skills/video-harness-setup/assets/templates/대본_양식.md.tmpl"
+
+
+def _script_from_form(body: str) -> str:
+    import scaffold  # 양식의 운율 안내 블록은 스캐폴드가 채운다 — 실제로 만들어지는 파일과 같게 한다.
+
+    form = TEMPLATE.read_text(encoding="utf-8").replace("{{channel_name}}", "동네한바퀴")
+    form = form.replace("{{script_rhythm_block}}", scaffold.SCRIPT_RHYTHM_FORM_BLOCKS["meter"])
+    assert "{{" not in form
+    assert "(여기에 쓴다)" in form
+    return form.replace("(여기에 쓴다)", body)
+
+
+def test_only_the_script_section_of_the_form_is_counted():
+    text = _script_from_form("오늘은 / 우리 동네 / 숨은 맛집 / 가 볼게\n\n딱 하나만 / 기억하세요")
+    result = cr.analyze(text)
+    assert [row["grade"] for row in result["lines"]] == [cr.GRADE_OK, cr.GRADE_TOLERATED]
+    assert result["counted"] == 2 and result["unmarked"] == 0 and result["spell_out"] == 0
+    assert result["scope"] == "section"
+
+
+def test_strip_on_the_form_prints_only_the_script():
+    text = _script_from_form("오늘은 / 우리 동네 / 숨은 맛집 / 가 볼게\n\n\n딱 하나만 / 기억하세요")
+    assert cr.strip_marks(text) == "오늘은 우리 동네 숨은 맛집 가 볼게\n\n딱 하나만 기억하세요\n"
+
+
+def test_the_untouched_form_has_nothing_to_count_or_print():
+    text = _script_from_form("(여기에 쓴다)")
+    assert cr.analyze(text)["lines"] == []
+    assert cr.strip_marks(text) == ""
+
+
+def test_section_ends_at_the_next_heading_of_same_or_higher_level():
+    text = "# 회차\n\n## 대본\n\n오늘은 / 우리 동네 / 숨은 맛집 / 가 볼게\n\n### 메모\n\n이 줄도 / 대본 구역 / 안쪽이다 / 셉니다\n\n## 출처\n\n여기는 / 대본이 / 아닙니다 / 안 셈\n"
+    result = cr.analyze(text)
+    assert [row["line"] for row in result["lines"]] == [5, 9]
+
+
+def test_original_line_numbers_are_reported_inside_a_section():
+    text = "머리말\n\n## 대본\n딱 하나만 / 기억하세요\n"
+    assert [row["line"] for row in cr.analyze(text)["lines"]] == [4]
+
+
+def test_without_a_script_heading_the_whole_file_is_the_script():
+    text = "# 메모\n오늘은 / 우리 동네 / 숨은 맛집 / 가 볼게\n```\n예시 / 줄은 / 세지 / 않는다\n```\n딱 하나만 / 기억하세요\n"
+    result = cr.analyze(text)
+    assert result["scope"] == "whole-file"
+    assert [row["line"] for row in result["lines"]] == [2, 6]
+    assert cr.strip_marks(text) == "오늘은 우리 동네 숨은 맛집 가 볼게\n딱 하나만 기억하세요\n"
+
+
+def test_list_marker_is_dropped_from_the_stripped_script():
+    text = "- 냉장고에 / 남은 재료 / 이것만은 / 꼭 넣어\n"
+    assert cr.analyze(text)["lines"][0]["pattern"] == "4/4/4/3"
+    assert cr.strip_marks(text) == "냉장고에 남은 재료 이것만은 꼭 넣어\n"
+
+
+def test_report_says_which_scope_was_counted(tmp_path, capsys):
+    path = tmp_path / "대본.md"
+    path.write_text("## 대본\n딱 하나만 / 기억하세요\n", encoding="utf-8")
+    assert cr.main([str(path)]) == 0
+    assert '"## 대본" 아래만' in capsys.readouterr().out
