@@ -85,6 +85,7 @@ ElevenLabs·Pexels·Higgsfield 같은 서비스를 고르면 키가 필요합니
 | 말 → 자막 | mlx-whisper(Apple Silicon) / faster-whisper(그 외) | 기본 모델 `large-v3-turbo` |
 | 소재 | 직접 촬영(기본) / 무료 스톡(Pexels·Wikimedia) / Higgsfield(AI 생성) | 여러 개 고를 수 있습니다 |
 | 레퍼런스 분석 | 설치 / 안 함 | 닮고 싶은 영상을 채널 스타일에 반영할 때 씁니다 |
+| 대본 운율 | 3·4조 네 마디(기본) / 자유 | 에이전트가 쓰는 내레이션이 읽을 때 리듬이 느껴지게 나옵니다. 글자 수를 세어 보여 주는 도구가 함께 들어갑니다 |
 
 폰트(Pretendard)와 채널별 스타일 명세(`frame.md`)는 항상 함께 만들어집니다. `frame.md`는 색·글꼴·자막 위치·움직임을 한곳에 정해 두어, 회차가 바뀌어도 모션그래픽이 같은 모양을 유지하게 합니다.
 
@@ -93,6 +94,7 @@ ElevenLabs·Pexels·Higgsfield 같은 서비스를 고르면 키가 필요합니
 - 채널별 폴더 (`01_원본영상`, `02_기획과자막`, `03_편집프로젝트`, `04_완성영상`)와 스타일 명세
 - 공용 폴더 (`스타일_라이브러리`, `도구`, `99.레퍼런스`)
 - 에이전트가 지킬 작업 규칙 (`AGENTS.md`, Claude Code용 `CLAUDE.md`)
+- 채널별 대본 양식과 대본의 마디·음절을 세어 보여 주는 도구 (`도구/script/check_rhythm.py`)
 - 설정 파일 `harness.config.json`과 키를 적을 `.env` 양식
 - 실제로 렌더한 10초 확인 영상
 

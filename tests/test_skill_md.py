@@ -182,3 +182,26 @@ def test_add_channel_example_passes_the_workflow():
 
 def test_the_skill_says_kind_is_derived_and_not_asked():
     assert "영상 유형(`kind`)은 묻지 않는다" in text()
+
+
+# --- 대본 운율(script_rhythm)은 9단계 작업 규칙의 세 번째 값이다 ---
+
+
+def test_step_nine_offers_both_rhythm_values_with_a_runnable_command():
+    t = text()
+    assert "rules.script_rhythm" in t
+    for value in ("`meter`", "`free`"):
+        assert value in t, value
+    assert any("rules.script_rhythm" in chunk and '"meter"' in chunk for chunk in _command_chunks())
+
+
+def test_the_rhythm_is_explained_in_plain_words_with_one_example():
+    t = text()
+    assert "오늘은 / 우리 동네 / 숨은 맛집 / 가 볼게" in t
+    # 사용자에게 음수율·음보를 강의하지 않는다.
+    assert "음수율" not in t and "음보" not in t
+
+
+def test_the_summary_step_lists_the_rhythm():
+    t = text()
+    assert "대본 운율" in t

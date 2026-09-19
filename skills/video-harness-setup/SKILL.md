@@ -110,7 +110,7 @@ python3 "${SKILL_DIR}/scripts/preflight.py" "<ws>" --json
 | 6 | 전사(말→자막) 모델 | `large-v3-turbo` ★ — 빠르면서 정확하고, 이 하네스에서 검증한 이름은 이것뿐이다 / 다른 모델 이름 직접 지정(미확인) | `config_tool.py set "<ws>" modules.transcribe.model '"large-v3-turbo"'` | `module-transcribe.md` |
 | 7 | 소재 수급 (복수 선택) | 직접 촬영 `own-footage` ★ / 무료 스톡 `stock` / Higgsfield(AI 생성) `higgsfield`. Higgsfield를 고르면 인증 방식도 묻는다 — 구독 계정 로그인 `account` 또는 API 키 `api-key`(안 고르면 `none`) | `config_tool.py set "<ws>" modules.sources '["own-footage","stock"]'` 그리고 `config_tool.py set "<ws>" modules.higgsfield.auth '"api-key"'` | `module-stock.md`, `module-higgsfield.md` |
 | 8 | 레퍼런스 분석 스킬 | 설치 ★(3-1에서 레퍼런스를 골랐다면) — 없으면 레퍼런스를 자동으로 분석할 수 없다 / 안 함 | `config_tool.py set "<ws>" modules.reference.watch true` | `module-watch.md` |
-| 9 | 작업 규칙 | 버전은 `vN-then-final` ★(작업 중에는 _v2, _v3로 올리고 확정되면 최종본만 남긴다) 또는 `keep-all`. 샘플 길이 12초 ★ — 기본값 그대로 두면 통과. 이 값은 앞으로의 작업 규칙으로 기록만 된다. 세팅 단계에서는 어떤 파일도 지우지 않는다. 실제 정리는 2단계에서 사용자 승인을 받고 한다 | `config_tool.py set "<ws>" rules.versioning '"vN-then-final"'` 그리고 `config_tool.py set "<ws>" rules.sample_seconds 12` | — |
+| 9 | 작업 규칙 | 버전은 `vN-then-final` ★(작업 중에는 _v2, _v3로 올리고 확정되면 최종본만 남긴다) 또는 `keep-all`. 샘플 길이 12초 ★. 대본 운율은 `meter` ★ — 읽을 때 리듬이 살아 쇼츠 내레이션이 귀에 잘 붙는다 / `free`(운율 규칙 없이 자연스럽게). 셋 다 기본값 그대로 두면 통과. 이 값은 앞으로의 작업 규칙으로 기록만 된다. 세팅 단계에서는 어떤 파일도 지우지 않는다. 실제 정리는 2단계에서 사용자 승인을 받고 한다 | `config_tool.py set "<ws>" rules.versioning '"vN-then-final"'` 그리고 `config_tool.py set "<ws>" rules.sample_seconds 12` 그리고 `config_tool.py set "<ws>" rules.script_rhythm '"meter"'` | `script-rhythm.md` |
 | 10 | 요약을 보여 주고 확인 | — | 기록 없음. 3절로 간다 | — |
 
 채널 기록(0 · 3 · 3-1 · 3-1a · 3-2를 한 번에):
@@ -142,6 +142,7 @@ python3 "${SKILL_DIR}/scripts/config_tool.py" add-channel "<ws>" \
 - **4-1 (편집기)** — 출발점이 `footage-first`나 `per-episode`면 편집기를 쓰라고 권한다. 촬영본에서 시작하는 영상은 손으로 다듬는 단계가 반드시 생긴다. 어느 편집기인지는 이 순서로 정한다. ① **이미 쓰는 편집기가 있으면 그것을 추천한다** — 점검 결과의 `editors`로 CapCut·Premiere Pro 설치 여부를 보고, 설치된 쪽을 먼저 물어본다. ② 둘 다 안 쓰면 무료인 CapCut을 권하되, **CapCut 초안을 앱에서 실제로 여는 것은 아직 미확인**이라고 말한다(사람이 한 번 확인해 줘야 한다). Premiere Pro 쪽은 오래된 교환 형식인 FCP7 XML을 쓴다. ③ 어느 쪽이든 넘기기가 잘 안 되면 자막(SRT)·컷 목록·가져오기 안내가 든 묶음이 항상 함께 나오므로 손으로 가져올 수 있다. `script-first`면 `none`으로 충분하고 나중에 모듈만 추가할 수 있다.
 - **5 (목소리)** — 로컬 목소리 복제(`local-mlx`)는 Apple Silicon에서 실제로 돌려 봤다. 두 문단을 만들어 후처리하고 다시 전사했더니 글자는 입력과 정확히 같았다. 다만 **어떻게 들리는지(자연스러움, 원래 목소리와 닮은 정도)는 미확인이다** — 에이전트는 소리를 들을 수 없으니 사람이 들어 봐야 한다. 클라우드 TTS(`cloud`)는 공식 문서만 보고 구현했고 **실제로 호출해 본 적이 없다**(키가 없었다). 고르면 그대로 알린다. 남의 목소리를 복제하려면 그 사람의 동의가 필요하다.
 - **7 (Higgsfield)** — 구독의 무제한 혜택은 CLI·API에 적용되지 않고 항상 크레딧이 깎인다. 고르기 전에 알린다.
+- **9 (대본 운율)** — 용어를 설명하지 말고 예를 하나만 보여 준다. "에이전트가 내레이션을 쓸 때 읽으면 리듬이 느껴지게 끊어 씁니다 — `오늘은 / 우리 동네 / 숨은 맛집 / 가 볼게`처럼요. 글자 수를 세어 보여 주는 도구도 함께 들어갑니다." 기본값이므로 사용자가 다른 말을 하지 않으면 그대로 두고 넘어간다. "운율은 필요 없다"고 하면 `free`로 기록한다. 이 규칙은 에이전트가 새로 쓰는 글에만 적용되고, 사람이 실제로 한 말을 받아 적은 전사 결과는 고치지 않는다는 점도 한 줄로 알린다.
 
 ### 3-1a 레퍼런스 고르는 기준
 
@@ -162,6 +163,7 @@ python3 "${SKILL_DIR}/scripts/config_tool.py" add-channel "<ws>" \
 
 - 작업 공간 이름과 경로, 만들 채널(이름·출발점·포맷·유형·길이)
 - 고른 모듈 목록과 각각이 하는 일 한 줄
+- 작업 규칙: 버전 규칙, 샘플 길이, 대본 운율
 - 오래 걸릴 수 있는 것(모델 다운로드, npm 설치)과 대략의 소요
 - 나중에 사용자가 직접 해야 하는 일이 생긴다는 예고
 
@@ -321,4 +323,5 @@ python3 "${SKILL_DIR}/scripts/config_tool.py" set "<ws>" channels.0.kind '"longf
 | `module-higgsfield.md` | 소재 수급에 Higgsfield를 골랐을 때(인증·크레딧) |
 | `module-watch.md` | 레퍼런스 분석 스킬을 설치하거나 3-1a로 레퍼런스를 모을 때 |
 | `style-system.md` | 3-1·3-2에서 스타일과 일관성을 설명할 때, `frame.md`를 설명할 때 |
+| `script-rhythm.md` | 9단계에서 대본 운율을 설명할 때, 작업 공간에 놓일 대본 규칙을 확인할 때 |
 | `pitfalls.md` | 설치나 렌더가 실패했을 때. 증상 → 원인 → 해결로 정리되어 있다 |

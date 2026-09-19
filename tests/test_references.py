@@ -131,3 +131,29 @@ def test_workflows_reference_covers_both_flows_and_the_middle_case():
     # 초보자에게 설명할 말과, 애매한 중간 사례(찍은 영상 + 새 내레이션)까지 적혀 있어야 한다.
     assert "보충 내레이션" in text
     assert "자막" in text
+
+
+# --- 대본 운율(script_rhythm) 참고 문서 ---
+
+
+def test_script_rhythm_reference_carries_the_rule_grades_examples_and_fixes():
+    text = (R / "script-rhythm.md").read_text(encoding="utf-8")
+    assert "뜻이 먼저다" in text
+    for grade in ("맞음", "허용", "벗어남"):
+        assert grade in text, grade
+    for example in (
+        "오늘은 / 우리 동네 / 숨은 맛집 / 가 볼게",
+        "냉장고에 / 남은 재료 / 이것만은 / 꼭 넣어",
+        "딱 하나만 / 기억하세요",
+    ):
+        assert example in text, example
+    assert "check_rhythm.py" in text and "--strip" in text
+    # 고치는 법과 하지 말 것이 둘 다 있어야 한다.
+    assert "## 벗어남" in text and "## 하지 않을 것" in text
+    assert "전사" in text
+
+
+def test_workflows_reference_points_at_the_rhythm_rule():
+    text = (R / "workflows.md").read_text(encoding="utf-8")
+    assert "script-rhythm.md" in text
+    assert "운율" in text
