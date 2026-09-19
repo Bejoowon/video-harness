@@ -32,6 +32,9 @@ OPTIONAL_CHANNEL_FIELDS = {"concept", "opening", "references", "style_start", "c
 # 때는 내려받지 않고 이 값을 직접 기록해야 한다.
 OPTIONAL_FIELDS_BY_PARENT: dict[tuple[str, ...], set[str]] = {
     ("modules", "voice"): {"model_path"},
+    # `rules.script_rhythm`은 이 키가 생기기 전에 만든 설정에는 아예 없다. 그런
+    # 작업 공간에서도 값을 바꿀 수 있어야 하므로 새로 넣는 것을 허용한다.
+    ("rules",): {"script_rhythm"},
 }
 
 

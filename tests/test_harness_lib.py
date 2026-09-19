@@ -172,3 +172,25 @@ def test_validate_rejects_unknown_workflow():
     cfg["channels"] = [_channel(workflow="찍으면서정함")]
     errors = h.validate_config(cfg)
     assert any("workflow" in e for e in errors)
+
+
+# --- 대본 운율(script_rhythm): 작업 규칙의 선택 항목. 없으면 `meter`로 본다. ---
+
+
+def test_default_config_writes_scripts_with_meter():
+    assert h.default_config()["rules"]["script_rhythm"] == "meter"
+
+
+def test_validate_accepts_both_rhythm_values_and_the_missing_key():
+    cfg = h.default_config()
+    for value in ("meter", "free"):
+        cfg["rules"]["script_rhythm"] = value
+        assert h.validate_config(cfg) == [], value
+    del cfg["rules"]["script_rhythm"]
+    assert h.validate_config(cfg) == []
+
+
+def test_validate_rejects_unknown_rhythm():
+    cfg = h.default_config()
+    cfg["rules"]["script_rhythm"] = "3·4조"
+    assert any("script_rhythm" in e for e in h.validate_config(cfg))

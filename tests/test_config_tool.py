@@ -430,3 +430,33 @@ def test_set_allows_workflow_that_is_not_there_yet(tmp_path):
     _add_channel(tmp_path, "동네한바퀴")
     assert ct.main(["set", str(tmp_path), "channels.0.workflow", "per-episode"]) == 0
     assert h.load_config(tmp_path)["channels"][0]["workflow"] == "per-episode"
+
+
+# --- 대본 운율(script_rhythm) ---
+
+
+def test_set_script_rhythm_to_free(tmp_path):
+    _init(tmp_path)
+    assert ct.main(["set", str(tmp_path), "rules.script_rhythm", '"free"']) == 0
+    assert h.load_config(tmp_path)["rules"]["script_rhythm"] == "free"
+
+
+def test_set_script_rhythm_on_a_config_made_before_this_key_existed(tmp_path):
+    """예전 설정에는 `rules.script_rhythm`이 아예 없다. 그래도 새로 넣을 수 있어야 한다."""
+    _init(tmp_path)
+    cfg = h.load_config(tmp_path)
+    del cfg["rules"]["script_rhythm"]
+    h.save_config(tmp_path, cfg)
+
+    assert ct.main(["set", str(tmp_path), "rules.script_rhythm", '"free"']) == 0
+    assert h.load_config(tmp_path)["rules"]["script_rhythm"] == "free"
+
+
+def test_set_rejects_an_unknown_rhythm_and_leaves_the_file_untouched(tmp_path, capsys):
+    _init(tmp_path)
+    before = (tmp_path / "harness.config.json").read_bytes()
+    capsys.readouterr()
+
+    assert ct.main(["set", str(tmp_path), "rules.script_rhythm", '"3·4조"']) == 1
+    assert "script_rhythm" in capsys.readouterr().err
+    assert (tmp_path / "harness.config.json").read_bytes() == before

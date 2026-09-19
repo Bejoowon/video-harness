@@ -92,7 +92,7 @@ def default_config() -> dict:
             "higgsfield": {"auth": "none"},
             "reference": {"watch": False},
         },
-        "rules": {"versioning": "vN-then-final", "sample_seconds": 12},
+        "rules": {"versioning": "vN-then-final", "sample_seconds": 12, "script_rhythm": "meter"},
         "paths": {},
         "status": {"installed": [], "failed": [], "smoke_test": "not-run", "handoff_verified_by_user": False},
     }
@@ -110,6 +110,7 @@ def validate_config(config: dict) -> list[str]:
     higgsfield_auths = {"none", "account", "api-key"}
     valid_agents = {"claude", "codex"}
     versioning_values = {"vN-then-final", "keep-all"}
+    script_rhythms = {"meter", "free"}
     formats = {"9:16", "16:9"}
     kinds = {"narration-shorts", "footage-shorts", "longform-vlog"}
     style_starts = {"reference", "preset", "manual", "later"}
@@ -159,6 +160,12 @@ def validate_config(config: dict) -> list[str]:
     sample_seconds = rules.get("sample_seconds")
     if "sample_seconds" in rules and (not isinstance(sample_seconds, int) or isinstance(sample_seconds, bool)):
         errors.append("rules.sample_seconds: 정수가 아닙니다")
+
+    # 대본 운율은 선택 항목이다. 이 키가 없는 예전 설정도 그대로 유효하고, 읽는 쪽은
+    # 없으면 `meter`로 본다(scaffold.script_rhythm_of).
+    script_rhythm = rules.get("script_rhythm")
+    if "script_rhythm" in rules and script_rhythm not in script_rhythms:
+        errors.append(f"rules.script_rhythm: 알 수 없는 값 '{script_rhythm}' (허용: {sorted(script_rhythms)})")
 
     apple_silicon = config.get("platform", {}).get("apple_silicon")
     if voice_mode == "local-mlx" and not apple_silicon:
