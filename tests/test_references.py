@@ -119,3 +119,15 @@ def test_workspace_argument_is_quoted_in_runnable_reference_commands():
                     continue
                 unquoted = re.search(rf'(?<!"){re.escape(placeholder)}', chunk)
                 assert not unquoted, (p.name, chunk.strip())
+
+
+# --- 출발점(workflow) 참고 문서 ---
+
+
+def test_workflows_reference_covers_both_flows_and_the_middle_case():
+    text = (R / "workflows.md").read_text(encoding="utf-8")
+    for value in ("footage-first", "script-first", "per-episode"):
+        assert value in text, value
+    # 초보자에게 설명할 말과, 애매한 중간 사례(찍은 영상 + 새 내레이션)까지 적혀 있어야 한다.
+    assert "보충 내레이션" in text
+    assert "자막" in text

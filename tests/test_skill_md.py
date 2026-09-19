@@ -83,7 +83,7 @@ def test_config_tool_records_the_answers():
 
 def test_every_interview_step_id_appears_in_the_table():
     t = text()
-    steps = ["1", "2", "3", "3-1", "3-1a", "3-2", "4", "4-1", "5", "6", "7", "8", "9", "10"]
+    steps = ["0", "1", "2", "3", "3-1", "3-1a", "3-2", "4", "4-1", "5", "6", "7", "8", "9", "10"]
     for step in steps:
         assert f"| {step} |" in t, step
 
@@ -151,3 +151,34 @@ def test_flags_used_on_our_scripts_exist_in_their_parsers():
             allowed |= _declared_flags(script)
         for flag in _FLAG_RE.findall(chunk):
             assert flag in allowed, (chunk.strip(), flag, sorted(allowed))
+
+
+# --- 출발점(workflow)은 인터뷰의 첫 질문이다 ---
+
+WORKFLOW_QUESTION = "직접 찍은 촬영본으로 만드시나요?"
+
+
+def test_the_workflow_question_comes_before_the_workspace_name_question():
+    t = text()
+    assert WORKFLOW_QUESTION in t
+    assert t.index(WORKFLOW_QUESTION) < t.index("작업 공간 경로와 이름")
+
+
+def test_all_three_workflow_values_appear():
+    t = text()
+    for value in ("footage-first", "script-first", "per-episode"):
+        assert f"`{value}`" in t, value
+
+
+def test_the_kind_flag_is_gone_from_example_commands():
+    """유형(`kind`)은 묻지 않고 출발점과 포맷에서 자동으로 정해진다."""
+    for chunk in _command_chunks():
+        assert "--kind" not in chunk, chunk.strip()
+
+
+def test_add_channel_example_passes_the_workflow():
+    assert any("add-channel" in chunk and "--workflow" in chunk for chunk in _command_chunks())
+
+
+def test_the_skill_says_kind_is_derived_and_not_asked():
+    assert "영상 유형(`kind`)은 묻지 않는다" in text()

@@ -55,12 +55,39 @@ python3 "${SKILL_DIR}/scripts/preflight.py" "<ws>" --json
 ### 규칙
 
 - 한 번에 한 가지만 묻는다. 여러 질문을 한 번에 쏟지 않는다. 표의 한 행이 한 질문이다. 3단계처럼 한 행에 값이 여러 개면 값마다 나눠 묻되, 기록은 행 단위로 한 번에 한다.
-- 질문마다 선택지를 모두 보여 주고, 추천 하나에 ★를 붙이고, 추천하는 이유를 한 줄 덧붙인다.
+- 질문마다 선택지를 모두 보여 주고, 추천 하나에 ★를 붙이고, 추천하는 이유를 한 줄 덧붙인다. 0단계(출발점)만 예외다 — 취향이 아니라 사실을 묻는 질문이라 추천을 붙이지 않는다.
 - 점검 결과로 걸러진 선택지는 아예 보여 주지 않는다. `platform.apple_silicon`이 거짓이면 로컬 목소리 복제를 선택지에서 뺀다.
 - 답을 받으면 그 줄의 기록 명령을 바로 실행한다. 도중에 끊겨도 다음 실행 때 이어서 한다.
 - "모르겠어요", "아무거나"라고 하면 추천값으로 정하고 더 캐묻지 않는다. 무엇으로 정했는지 한 줄로만 알린다.
 - API 키·비밀번호 같은 비밀값은 채팅으로 받지 않는다. `.env.example`을 보고 본인이 `.env`에 직접 채우게 하고, 나중에 doctor가 "채워졌는지"만 확인한다.
-- 채널 질문(3 · 3-1 · 3-1a · 3-2)은 답을 모았다가 `add-channel` 한 번으로 기록한다. 채널은 통째로 만들어야 해서다. 그 앞뒤 단계는 답마다 바로 기록한다.
+- 채널 질문(0 · 3 · 3-1 · 3-1a · 3-2)은 답을 모았다가 `add-channel` 한 번으로 기록한다. 채널은 통째로 만들어야 해서다. 그 앞뒤 단계는 답마다 바로 기록한다.
+
+### 0단계 — 출발점
+
+인터뷰의 **첫 질문**이다. 작업 공간 이름보다 먼저 묻는다. 영상을 만드는 방식이 두 갈래로 갈라지고, 그 갈래가 뒤에 오는 질문들의 추천을 바꾸기 때문이다.
+
+> 직접 찍은 촬영본으로 만드시나요?
+> ① 네, 찍어 둔 영상으로 만들어요 (`footage-first`)
+> ② 아니요, 대본부터 쓰고 영상은 찾거나 생성해요 (`script-first`)
+> ③ 회차마다 달라요 (`per-episode`)
+
+이 질문에는 ★ 추천을 붙이지 않는다. 취향이 아니라 사용자가 이미 하고 있는 방식을 묻는 것이라 대신 골라 줄 수 없다. 사용자가 헷갈려 하면 두 흐름을 각각 한두 문장으로 풀어 주고 다시 묻는다 — 찍은 영상 먼저는 찍어 둔 촬영본을 먼저 보고 쓸 구간을 골라 이야기를 만드는 방식이고, 대본 먼저는 할 말을 먼저 쓴 다음 거기에 맞는 화면을 찾거나 만드는 방식이다. 더 풀어서 설명할 말은 `workflows.md`에 있다.
+
+답은 채널을 만들 때 `add-channel`의 `--workflow`로 함께 기록된다. 그 전까지는 설정 파일 어디에도 남지 않는다. 그래서 이어서 할 때 `channels`가 비어 있으면 이 질문부터 다시 한다.
+
+영상 유형(`kind`)은 묻지 않는다. 출발점과 포맷에서 자동으로 정해진다 — `script-first`면 내레이션 쇼츠, 그 밖에는 세로면 촬영본 중심 쇼츠·가로면 롱폼 브이로그다. 설정에는 그대로 기록되므로 다르면 나중에 `channels.<번호>.kind`로 고친다.
+
+#### 출발점에 따른 추천
+
+뒤 단계에서 어느 선택지에 ★를 붙일지 이 표를 보고 정한다. 선택지 자체는 그대로 다 보여 준다.
+
+| 단계 | `footage-first` | `script-first` | `per-episode` |
+|---|---|---|---|
+| 편집기 넘기기 (4-1) | 쓰기를 권함 — 촬영본은 손으로 다듬는 단계가 생긴다 | `none` | 쓰기를 권함 |
+| 목소리 (5) | `record` — 원음·직접 녹음 | TTS — Apple Silicon이면 `local-mlx`도 안내하고, 아니면 `cloud` | 둘 다 설명하고 고르게 함 |
+| 전사 (6) | 필수로 안내 — 전사 결과가 자막의 원본이다 | 설치 권함 — 자막 타이밍을 맞추는 데 쓴다 | 필수로 안내 |
+| 소재 (7) | `own-footage` | `stock`(무료 스톡)과 `higgsfield` 중에서 | 복수 선택 안내 |
+| 레퍼런스 분석 (8) | 선택 | 권함 — 다른 채널 영상을 보고 구성을 잡는 흐름이다 | 권함 |
 
 ### 단계
 
@@ -70,9 +97,10 @@ python3 "${SKILL_DIR}/scripts/preflight.py" "<ws>" --json
 
 | 단계 | 묻는 것 | 선택지 (★ 추천 — 이유) | 기록 명령 | 고르면 읽을 문서 |
 |---|---|---|---|---|
+| 0 | 출발점 — 위 "0단계"의 질문을 그대로 묻는다 | 찍은 영상 먼저 `footage-first` / 대본 먼저 `script-first` / 회차마다 정함 `per-episode`. ★ 없음 — 사실을 묻는 질문이다 | (3-2까지 모아서 아래 `add-channel` 한 번) | `workflows.md` |
 | 1 | 작업 공간 경로와 이름 | 지금 폴더 ★ — 이미 여기서 일하고 있다 / 다른 경로(고르면 그 경로로 `preflight.py`부터 다시) | `config_tool.py init "<ws>" --name "내작업실"` | — |
 | 2 | 어느 에이전트에서 쓸지 | 지금 이 에이전트만 ★ — 나중에 늘릴 수 있다 / Claude Code(`claude`) / Codex(`codex`) / 둘 다(`claude`,`codex` — 규칙 파일이 양쪽 형식으로 놓인다) | `config_tool.py set "<ws>" agents '["claude","codex"]'`. 1·2단계 답을 함께 알면 `config_tool.py init "<ws>" --name "내작업실" --agents claude,codex`로 한 번에 기록해도 된다 | — |
-| 3 | 채널 이름, 포맷, 영상 유형, 목표 길이, 언어, 한 줄 콘셉트, 고정 오프닝(선택) | 포맷 세로 쇼츠 `9:16` ★ — 쇼츠·릴스 기본 / 가로 `16:9`. 유형 내레이션 쇼츠 `narration-shorts` ★ — 만들기 가장 쉽다 / 촬영본 중심 쇼츠 `footage-shorts` / 롱폼 브이로그 `longform-vlog`. 길이 60초 ★ | (3-2까지 모아서 아래 `add-channel` 한 번) | — |
+| 3 | 채널 이름, 포맷, 목표 길이, 언어, 한 줄 콘셉트, 고정 오프닝(선택) | 포맷 세로 쇼츠 `9:16` ★ — 쇼츠·릴스 기본 / 가로 `16:9`. 길이 60초 ★. 영상 유형은 0단계 답과 포맷에서 자동으로 정해지므로 묻지 않는다 | (3-2까지 모아서 아래 `add-channel` 한 번) | — |
 | 3-1 | 스타일 시작점 | 레퍼런스에서 뽑기 `reference` ★ — 닮고 싶은 영상이 있으면 가장 빠르다(레퍼런스 분석 모듈 필요) / 기성 프리셋 `preset` / 직접 입력 `manual` / 나중에 정함 `later` | `add-channel`의 `--style-start reference`. `frame.md` 머리말에 `style_start: reference`로 남는다 | `module-watch.md`, `style-system.md` |
 | 3-1a | (3-1이 `reference`일 때) 닮고 싶은 영상 1~3개와 각각 마음에 드는 점 | 지금 있는 것만 ★ — 없으면 "나중에 가져오기"로 넘긴다 | `add-channel`의 `--reference "URL::자막이 크고 가운데에 겹친다"`(여러 번). 채널의 `레퍼런스_목록.md`에 "미분석"으로 들어간다 | `module-watch.md` |
 | 3-2 | 일관성 수준 | 만들면서 정함 `decide-later` ★ — 첫 채널은 대개 여기서 시작한다 / 포맷 고정형 `fixed` / 회차 변주형 `variation` | `add-channel`의 `--consistency decide-later`. `frame.md` 머리말에 `consistency_level`로 남고, `fixed`를 고르면 `consistency` 블록이 좁아진다(아래 설명) | `style-system.md` |
@@ -85,11 +113,11 @@ python3 "${SKILL_DIR}/scripts/preflight.py" "<ws>" --json
 | 9 | 작업 규칙 | 버전은 `vN-then-final` ★(작업 중에는 _v2, _v3로 올리고 확정되면 최종본만 남긴다) 또는 `keep-all`. 샘플 길이 12초 ★ — 기본값 그대로 두면 통과. 이 값은 앞으로의 작업 규칙으로 기록만 된다. 세팅 단계에서는 어떤 파일도 지우지 않는다. 실제 정리는 2단계에서 사용자 승인을 받고 한다 | `config_tool.py set "<ws>" rules.versioning '"vN-then-final"'` 그리고 `config_tool.py set "<ws>" rules.sample_seconds 12` | — |
 | 10 | 요약을 보여 주고 확인 | — | 기록 없음. 3절로 간다 | — |
 
-채널 기록(3 · 3-1 · 3-1a · 3-2를 한 번에):
+채널 기록(0 · 3 · 3-1 · 3-1a · 3-2를 한 번에):
 
 ```
 python3 "${SKILL_DIR}/scripts/config_tool.py" add-channel "<ws>" \
-  --name "동네한바퀴" --format 9:16 --kind narration-shorts \
+  --name "동네한바퀴" --format 9:16 --workflow script-first \
   --target-seconds 60 --language ko --concept "우리 동네 가게를 1분에 소개한다" \
   --opening "오늘은 여기입니다" --style-start reference --consistency decide-later \
   --reference "https://example.com/shorts/1::자막이 크고 화면 가운데에 겹친다"
@@ -98,6 +126,8 @@ python3 "${SKILL_DIR}/scripts/config_tool.py" add-channel "<ws>" \
 출력에 새 채널의 `id`가 들어 있다. 이후 `--channel`에 쓸 값이니 기억한다. 한글 이름은 `channel-6ad0f42f` 같은 임의 id가 되므로 짐작하지 말고 출력값을 그대로 쓴다. 채널 폴더 이름은 `--name` 값 그대로다.
 
 이미 만든 채널의 값을 고쳐야 하면 목록 번호(0부터)로 짚는다: `config_tool.py set "<ws>" channels.0.format '"16:9"'`.
+
+0단계의 답은 채널의 `채널기준.md`에 들어간다 — 머리의 "출발점" 한 줄과 "작업 순서" 절이 그 답에서 만들어진다. 출발점을 고르지 않은 채 채널을 만들면 작업 순서가 공통 순서로 남고, 나중 점검에서 `주의`로 뜬다.
 
 3-1과 3-2의 답은 채널의 `frame.md`(스타일 단일 원본)에 그대로 들어간다.
 
@@ -109,7 +139,7 @@ python3 "${SKILL_DIR}/scripts/config_tool.py" add-channel "<ws>" \
 ### 단계별로 더 알아야 할 것
 
 - **4 (렌더 엔진)** — 솔직하게 비교해 준다. HyperFrames는 컷·자막·그래픽 자동화에 강하고, 속도 램프·피사체 추적·멀티캠은 못 한다. 그런 편집이 필요하면 4-1에서 편집기를 고르면 된다. Remotion은 React를 아는 사람에게 편하고, 영리 법인 규모에 따라 유료 라이선스가 필요할 수 있다(`module-remotion.md`).
-- **4-1 (편집기)** — 유형이 `footage-shorts`나 `longform-vlog`면 편집기를 쓰라고 권한다. 촬영본이 많은 영상은 손으로 다듬는 단계가 반드시 생긴다. 어느 편집기인지는 이 순서로 정한다. ① **이미 쓰는 편집기가 있으면 그것을 추천한다** — 점검 결과의 `editors`로 CapCut·Premiere Pro 설치 여부를 보고, 설치된 쪽을 먼저 물어본다. ② 둘 다 안 쓰면 무료인 CapCut을 권하되, **CapCut 초안을 앱에서 실제로 여는 것은 아직 미확인**이라고 말한다(사람이 한 번 확인해 줘야 한다). Premiere Pro 쪽은 오래된 교환 형식인 FCP7 XML을 쓴다. ③ 어느 쪽이든 넘기기가 잘 안 되면 자막(SRT)·컷 목록·가져오기 안내가 든 묶음이 항상 함께 나오므로 손으로 가져올 수 있다. `narration-shorts`면 `none`으로 충분하고 나중에 모듈만 추가할 수 있다.
+- **4-1 (편집기)** — 출발점이 `footage-first`나 `per-episode`면 편집기를 쓰라고 권한다. 촬영본에서 시작하는 영상은 손으로 다듬는 단계가 반드시 생긴다. 어느 편집기인지는 이 순서로 정한다. ① **이미 쓰는 편집기가 있으면 그것을 추천한다** — 점검 결과의 `editors`로 CapCut·Premiere Pro 설치 여부를 보고, 설치된 쪽을 먼저 물어본다. ② 둘 다 안 쓰면 무료인 CapCut을 권하되, **CapCut 초안을 앱에서 실제로 여는 것은 아직 미확인**이라고 말한다(사람이 한 번 확인해 줘야 한다). Premiere Pro 쪽은 오래된 교환 형식인 FCP7 XML을 쓴다. ③ 어느 쪽이든 넘기기가 잘 안 되면 자막(SRT)·컷 목록·가져오기 안내가 든 묶음이 항상 함께 나오므로 손으로 가져올 수 있다. `script-first`면 `none`으로 충분하고 나중에 모듈만 추가할 수 있다.
 - **5 (목소리)** — 로컬 목소리 복제(`local-mlx`)는 Apple Silicon에서 실제로 돌려 봤다. 두 문단을 만들어 후처리하고 다시 전사했더니 글자는 입력과 정확히 같았다. 다만 **어떻게 들리는지(자연스러움, 원래 목소리와 닮은 정도)는 미확인이다** — 에이전트는 소리를 들을 수 없으니 사람이 들어 봐야 한다. 클라우드 TTS(`cloud`)는 공식 문서만 보고 구현했고 **실제로 호출해 본 적이 없다**(키가 없었다). 고르면 그대로 알린다. 남의 목소리를 복제하려면 그 사람의 동의가 필요하다.
 - **7 (Higgsfield)** — 구독의 무제한 혜택은 CLI·API에 적용되지 않고 항상 크레딧이 깎인다. 고르기 전에 알린다.
 
@@ -130,7 +160,7 @@ python3 "${SKILL_DIR}/scripts/config_tool.py" add-channel "<ws>" \
 
 설치를 시작하기 전에 한 화면으로 정리해 보여 주고 확인을 받는다.
 
-- 작업 공간 이름과 경로, 만들 채널(이름·포맷·유형·길이)
+- 작업 공간 이름과 경로, 만들 채널(이름·출발점·포맷·유형·길이)
 - 고른 모듈 목록과 각각이 하는 일 한 줄
 - 오래 걸릴 수 있는 것(모델 다운로드, npm 설치)과 대략의 소요
 - 나중에 사용자가 직접 해야 하는 일이 생긴다는 예고
@@ -208,15 +238,15 @@ python3 "${SKILL_DIR}/scripts/doctor.py" "<ws>"
 
 ## 6. 채널 추가
 
-이미 세팅된 작업 공간에 채널을 더할 때. 채널 질문(3 · 3-1 · 3-1a · 3-2)만 다시 묻는다. 모듈·규칙은 묻지 않는다.
+이미 세팅된 작업 공간에 채널을 더할 때. 채널 질문(0 · 3 · 3-1 · 3-1a · 3-2)만 다시 묻는다. 모듈·규칙은 묻지 않는다. 여기서도 출발점을 **가장 먼저** 묻는다 — 채널마다 다를 수 있고, 이미 있는 채널의 답을 물려받지 않는다.
 
 ```
-python3 "${SKILL_DIR}/scripts/config_tool.py" add-channel "<ws>" --name "새채널" --format 9:16 --kind footage-shorts --target-seconds 45 --language ko
+python3 "${SKILL_DIR}/scripts/config_tool.py" add-channel "<ws>" --name "새채널" --format 9:16 --workflow footage-first --target-seconds 45 --language ko
 python3 "${SKILL_DIR}/scripts/scaffold.py" "<ws>" --channel <새 채널 id>
 python3 "${SKILL_DIR}/scripts/smoke_test.py" "<ws>" --channel <새 채널 id>
 ```
 
-기존 채널의 파일은 건드리지 않는다. 새 채널이 `footage-shorts`나 `longform-vlog`인데 편집기 모듈이 없으면, 편집기를 추가할지 한 번 묻는다.
+기존 채널의 파일은 건드리지 않는다. 새 채널의 출발점이 `footage-first`나 `per-episode`인데 편집기 모듈이 없으면, 편집기를 추가할지 한 번 묻는다.
 
 ## 7. 기존 작업 공간 채택
 
@@ -237,9 +267,10 @@ python3 "${SKILL_DIR}/scripts/scaffold.py" "<ws>" --adopt
 
 `--adopt`는 등록만 한다. 설정 파일이 없으면 `--adopt`는 아무것도 만들지 않고 오류로 멈추므로 `init`을 반드시 먼저 실행한다. 폴더와 문서는 4절의 `scaffold.py "<ws>"`가 만든다. 멱등이라 이미 있는 파일은 그대로 두고 빠진 것만 채운다.
 
-채택 결과에 등록된 채널 목록이 나온다. 포맷·유형·길이는 기본값(9:16 세로, 내레이션 쇼츠, 60초)으로 들어가므로 채널마다 맞는지 확인하고, 다르면 그 채널만 다시 물어 목록 번호로 고친다.
+채택 결과에 등록된 채널 목록이 나온다. 출발점은 아예 비어 있고 포맷·유형·길이는 기본값(9:16 세로, 내레이션 쇼츠, 60초)으로 들어간다. 채널마다 0단계 질문을 하고, 포맷·길이도 맞는지 확인해 다르면 목록 번호로 고친다.
 
 ```
+python3 "${SKILL_DIR}/scripts/config_tool.py" set "<ws>" channels.0.workflow footage-first
 python3 "${SKILL_DIR}/scripts/config_tool.py" set "<ws>" channels.0.format '"16:9"'
 python3 "${SKILL_DIR}/scripts/config_tool.py" set "<ws>" channels.0.kind '"longform-vlog"'
 ```
@@ -248,13 +279,14 @@ python3 "${SKILL_DIR}/scripts/config_tool.py" set "<ws>" channels.0.kind '"longf
 
 ## 8. 재실행 메뉴
 
-설정 파일이 이미 있으면 처음부터 묻지 않는다. 다섯 가지 중 하나를 고르게 한다.
+설정 파일이 이미 있으면 처음부터 묻지 않는다. 여섯 가지 중 하나를 고르게 한다.
 
 | 고른 것 | 할 일 |
 |---|---|
 | 채널 추가 | 6절 |
+| 채널 출발점 바꾸기 | 0단계 질문을 다시 하고 `config_tool.py set "<ws>" channels.N.workflow '"footage-first"'`로 덮어쓴다(`N`은 목록 번호). `채널기준.md`는 이미 만들어진 파일이라 스캐폴드가 덮어쓰지 않으므로, 그 파일의 "작업 순서" 절은 새 출발점에 맞게 손으로 고쳐 준다 |
 | 모듈 추가·변경 | 해당 단계만 다시 묻고 `config_tool.py set`으로 덮어쓴 뒤, 그 모듈만 `install_module.py run`. 편집기를 바꾸면 이전 확인값이 자동으로 지워지므로 새 편집기로 다시 확인받는다 |
-| 인터뷰 이어서 하기 | `config_tool.py show "<ws>"`로 지금까지의 답을 읽는다. `channels`가 비었으면 3단계부터, 모듈 값이 기본값 그대로면 그 단계부터 다시 묻는다. 기본값을 의도적으로 고른 경우와 구분할 수 없으므로, 이어 가기 전에 지금 값을 한 화면으로 보여 주고 "이대로 둘지"를 먼저 확인한다 |
+| 인터뷰 이어서 하기 | `config_tool.py show "<ws>"`로 지금까지의 답을 읽는다. `channels`가 비었으면 0단계(출발점)부터, 모듈 값이 기본값 그대로면 그 단계부터 다시 묻는다. 기본값을 의도적으로 고른 경우와 구분할 수 없으므로, 이어 가기 전에 지금 값을 한 화면으로 보여 주고 "이대로 둘지"를 먼저 확인한다 |
 | 재점검 | `doctor.py "<ws>"`를 돌리고 표와 조치를 전한다 |
 | 스모크 테스트 다시 | `smoke_test.py "<ws>"`(필요하면 `--channel`) |
 
@@ -276,6 +308,7 @@ python3 "${SKILL_DIR}/scripts/config_tool.py" set "<ws>" channels.0.kind '"longf
 
 | 문서 | 언제 읽나 |
 |---|---|
+| `workflows.md` | 0단계 출발점을 묻거나, 사용자가 두 흐름 중 어느 쪽인지 헷갈려 할 때 |
 | `module-hyperframes.md` | 렌더 엔진으로 HyperFrames를 골랐을 때 |
 | `module-remotion.md` | 렌더 엔진으로 Remotion을 골랐을 때(라이선스 안내 포함) |
 | `module-handoff-capcut.md` | 편집기로 CapCut을 골랐을 때 |
