@@ -375,3 +375,58 @@ def test_set_without_a_note_has_no_note_key(tmp_path, capsys):
     ct.main(["set", str(tmp_path), "rules.sample_seconds", "15"])
     parsed = json.loads(capsys.readouterr().out)
     assert parsed == {"rules.sample_seconds": 15}
+
+
+# --- 출발점(workflow)과 --kind 자동 결정 ---
+
+
+def _add_channel_raw(ws, *extra):
+    return ct.main(["add-channel", str(ws), "--name", "동네한바퀴", "--target-seconds", "60", *extra])
+
+
+def test_add_channel_stores_workflow(tmp_path):
+    _init(tmp_path)
+    assert _add_channel(tmp_path, "동네한바퀴", "--workflow", "footage-first") == 0
+    assert h.load_config(tmp_path)["channels"][0]["workflow"] == "footage-first"
+    assert h.validate_config(h.load_config(tmp_path)) == []
+
+
+def test_add_channel_derives_kind_from_workflow_and_format(tmp_path):
+    cases = [
+        ("script-first", "9:16", "narration-shorts"),
+        ("script-first", "16:9", "narration-shorts"),
+        ("footage-first", "9:16", "footage-shorts"),
+        ("footage-first", "16:9", "longform-vlog"),
+        ("per-episode", "9:16", "footage-shorts"),
+        ("per-episode", "16:9", "longform-vlog"),
+    ]
+    for workflow, fmt, expected in cases:
+        ws = tmp_path / f"{workflow}-{fmt.replace(':', 'x')}"
+        _init(ws)
+        assert _add_channel_raw(ws, "--format", fmt, "--workflow", workflow) == 0, (workflow, fmt)
+        channel = h.load_config(ws)["channels"][0]
+        assert channel["kind"] == expected, (workflow, fmt)
+        assert h.validate_config(h.load_config(ws)) == []
+
+
+def test_add_channel_keeps_an_explicit_kind_over_the_derived_one(tmp_path):
+    _init(tmp_path)
+    assert _add_channel_raw(tmp_path, "--format", "9:16", "--workflow", "script-first", "--kind", "footage-shorts") == 0
+    assert h.load_config(tmp_path)["channels"][0]["kind"] == "footage-shorts"
+
+
+def test_add_channel_without_kind_or_workflow_fails_in_korean(tmp_path, capsys):
+    _init(tmp_path)
+    capsys.readouterr()
+
+    assert _add_channel_raw(tmp_path, "--format", "9:16") == 1
+    err = capsys.readouterr().err
+    assert "--workflow" in err and "--kind" in err
+    assert h.load_config(tmp_path)["channels"] == []
+
+
+def test_set_allows_workflow_that_is_not_there_yet(tmp_path):
+    _init(tmp_path)
+    _add_channel(tmp_path, "동네한바퀴")
+    assert ct.main(["set", str(tmp_path), "channels.0.workflow", "per-episode"]) == 0
+    assert h.load_config(tmp_path)["channels"][0]["workflow"] == "per-episode"

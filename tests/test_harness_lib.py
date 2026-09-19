@@ -153,3 +153,22 @@ def test_script_fix_builds_a_runnable_quoted_command(tmp_path):
     assert f'"{h.scripts_dir() / "scaffold.py"}"' in fix
     assert f'"{spaced}"' in fix
     assert (h.scripts_dir() / "scaffold.py").is_file()
+
+
+# --- 출발점(workflow): 채널의 선택 항목. 검증 관문은 validate_config 하나뿐이다. ---
+
+
+def test_validate_accepts_every_workflow_value_and_its_absence():
+    cfg = h.default_config()
+    for value in ("script-first", "footage-first", "per-episode"):
+        cfg["channels"] = [_channel(workflow=value)]
+        assert h.validate_config(cfg) == [], value
+    cfg["channels"] = [_channel()]
+    assert h.validate_config(cfg) == []
+
+
+def test_validate_rejects_unknown_workflow():
+    cfg = h.default_config()
+    cfg["channels"] = [_channel(workflow="찍으면서정함")]
+    errors = h.validate_config(cfg)
+    assert any("workflow" in e for e in errors)

@@ -114,6 +114,7 @@ def validate_config(config: dict) -> list[str]:
     kinds = {"narration-shorts", "footage-shorts", "longform-vlog"}
     style_starts = {"reference", "preset", "manual", "later"}
     consistency_levels = {"fixed", "variation", "decide-later"}
+    workflows = {"script-first", "footage-first", "per-episode"}
 
     modules = config.get("modules", {})
 
@@ -184,6 +185,12 @@ def validate_config(config: dict) -> list[str]:
             errors.append(
                 f"channels[{channel.get('id', '?')}].consistency: 알 수 없는 값 "
                 f"'{channel['consistency']}' (허용: {sorted(consistency_levels)})"
+            )
+        # workflow(출발점)도 선택 항목이다. 이 값이 없는 예전 설정도 그대로 유효하다.
+        if "workflow" in channel and channel["workflow"] not in workflows:
+            errors.append(
+                f"channels[{channel.get('id', '?')}].workflow: 알 수 없는 값 "
+                f"'{channel['workflow']}' (허용: {sorted(workflows)})"
             )
 
     return errors

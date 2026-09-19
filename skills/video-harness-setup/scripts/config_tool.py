@@ -23,8 +23,9 @@ FORMATS = ["9:16", "16:9"]
 KINDS = ["narration-shorts", "footage-shorts", "longform-vlog"]
 STYLE_STARTS = ["reference", "preset", "manual", "later"]
 CONSISTENCY_LEVELS = ["fixed", "variation", "decide-later"]
+WORKFLOWS = ["script-first", "footage-first", "per-episode"]
 # 채널에 아직 없어도 `set`으로 새로 넣을 수 있는 선택 항목 (validate_config가 허용하는 것들).
-OPTIONAL_CHANNEL_FIELDS = {"concept", "opening", "references", "style_start", "consistency"}
+OPTIONAL_CHANNEL_FIELDS = {"concept", "opening", "references", "style_start", "consistency", "workflow"}
 # 그 밖의 자리에서 아직 없어도 `set`으로 새로 넣을 수 있는 선택 항목. 키는 부모 경로
 # (점으로 구분한 튜플)다. `modules.voice.model_path`는 보통 `install_module.py run`이
 # 로컬 목소리 복제 모델을 내려받은 뒤 자동으로 채우지만, 이미 받아 둔 모델을 재사용할
@@ -217,6 +218,26 @@ def _unique_id(base: str, taken: set) -> str:
     return f"{base}-{suffix}"
 
 
+def resolve_kind(kind: str | None, workflow: str | None, channel_format: str) -> tuple[str | None, str | None]:
+    """영상 유형(`kind`)을 정한다. `--kind`를 받았으면 그대로, 아니면 출발점과 포맷에서 끌어낸다.
+
+    인터뷰는 유형을 따로 묻지 않는다 — 출발점(`workflow`)이 대본부터 쓰는 흐름이면
+    내레이션 쇼츠고, 촬영본에서 시작하면 포맷이 세로냐 가로냐가 유형을 가른다.
+    `kind`는 여전히 설정의 필수 항목이므로(하류의 doctor·스캐폴드가 읽는다) 둘 다
+    없으면 짐작하지 않고 멈춘다. (오류 메시지, None) 또는 (유형, None)을 돌려준다.
+    """
+    if kind:
+        return kind, None
+    if not workflow:
+        return None, (
+            "영상 유형을 정할 수 없습니다. `--workflow`(출발점)를 주면 유형이 자동으로 정해지고, "
+            "직접 정하려면 `--kind`를 주세요."
+        )
+    if workflow == "script-first":
+        return "narration-shorts", None
+    return ("footage-shorts" if channel_format == "9:16" else "longform-vlog"), None
+
+
 def cmd_add_channel(args: argparse.Namespace) -> int:
     workspace = Path(args.workspace)
     config, error = _load(workspace)
@@ -227,15 +248,20 @@ def cmd_add_channel(args: argparse.Namespace) -> int:
     if any(c.get("name") == args.name for c in channels):
         return _fail(f"같은 이름의 채널이 이미 있습니다: {args.name}")
 
+    kind, error = resolve_kind(args.kind, args.workflow, args.format)
+    if error:
+        return _fail(error)
+
     channel = {
         "id": _unique_id(h.slugify_channel(args.name), {c.get("id") for c in channels}),
         "name": args.name,
         "format": args.format,
-        "kind": args.kind,
+        "kind": kind,
         "target_seconds": args.target_seconds,
         "language": args.language,
     }
     optional = (
+        ("workflow", args.workflow),
         ("concept", args.concept),
         ("opening", args.opening),
         ("style_start", args.style_start),
@@ -320,7 +346,8 @@ def build_parser() -> argparse.ArgumentParser:
     channel_parser.add_argument("workspace", type=Path)
     channel_parser.add_argument("--name", required=True, help="채널 이름 (폴더 이름이 된다)")
     channel_parser.add_argument("--format", required=True, choices=FORMATS)
-    channel_parser.add_argument("--kind", required=True, choices=KINDS)
+    channel_parser.add_argument("--workflow", choices=WORKFLOWS, help="출발점. 주면 --kind를 자동으로 정한다")
+    channel_parser.add_argument("--kind", choices=KINDS, help="안 주면 --workflow와 --format에서 정한다")
     channel_parser.add_argument("--target-seconds", required=True, type=int)
     channel_parser.add_argument("--language", default="ko")
     channel_parser.add_argument("--concept", help="한 줄 콘셉트")
