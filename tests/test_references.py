@@ -157,3 +157,26 @@ def test_workflows_reference_points_at_the_rhythm_rule():
     text = (R / "workflows.md").read_text(encoding="utf-8")
     assert "script-rhythm.md" in text
     assert "운율" in text
+
+
+# --- 방향 파악(1부)과 조사(2부) 참고 문서 ---
+
+
+def test_discovery_reference_covers_the_interview_the_research_and_the_no_web_case():
+    text = (R / "discovery.md").read_text(encoding="utf-8")
+    for field in ("audience", "scope", "expertise", "tone", "platforms", "evidence", "topics"):
+        assert field in text, field
+    # 막연한 답에는 추측 대신 구체적인 예를 두세 개 들어 준다.
+    assert "추측" in text and "예" in text
+    # 조사 결과의 정직성 규칙.
+    assert "지어내지 않는다" in text
+    assert "출처 미확인" in text
+    assert "찾아본 척하지 않는다" in text
+    assert "조사하지 않은 아이디어" in text
+    # 민감 분야.
+    assert "strict" in text
+
+
+def test_discovery_reference_keeps_references_analysis_only():
+    text = (R / "discovery.md").read_text(encoding="utf-8")
+    assert "분석용" in text

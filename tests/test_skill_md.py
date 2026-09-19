@@ -82,8 +82,9 @@ def test_config_tool_records_the_answers():
 
 
 def test_every_interview_step_id_appears_in_the_table():
+    """3부(세팅) 단계 표. 출발점은 이제 단계가 아니라 1부의 방향 질문이다."""
     t = text()
-    steps = ["0", "1", "2", "3", "3-1", "3-1a", "3-2", "4", "4-1", "5", "6", "7", "8", "9", "10"]
+    steps = ["1", "2", "3", "3-1", "3-1a", "3-2", "4", "4-1", "5", "6", "7", "8", "9", "10"]
     for step in steps:
         assert f"| {step} |" in t, step
 
@@ -205,3 +206,92 @@ def test_the_rhythm_is_explained_in_plain_words_with_one_example():
 def test_the_summary_step_lists_the_rhythm():
     t = text()
     assert "대본 운율" in t
+
+
+# --- 인터뷰는 방향 파악(1부) → 조사(2부) → 세팅(3부) 순서다 ---
+
+DIRECTION_QUESTION = "어떤 채널을 만들고 싶으세요?"
+
+
+def _slice(start: str, end: str) -> str:
+    t = text()
+    return t[t.index(start) : t.index(end)]
+
+
+def test_the_conversation_rules_open_the_interview_section():
+    t = text()
+    assert t.index("## 2. 인터뷰") < t.index("### 대화 규칙") < t.index("### 1부")
+
+
+def test_the_agent_waits_for_the_answer_and_never_answers_for_the_user():
+    block = _slice("### 대화 규칙", "### 1부")
+    assert "질문을 하면 거기서 멈추고 사용자의 답을 기다린다" in block
+    assert "에이전트가 스스로 골라서 기록하지 않는다" in block
+    assert "추측해서 채우지 않는다" in block
+
+
+def test_letting_the_agent_decide_does_not_skip_direction_research_or_summary():
+    block = _slice("### 대화 규칙", "### 1부")
+    assert "알아서 해줘" in block
+    assert "1부·2부와 10단계 요약 확인은 건너뛰지 않는다" in block
+    assert "제가 고른 값" in block
+
+
+def test_a_run_that_cannot_ask_stops_instead_of_setting_up():
+    block = _slice("### 대화 규칙", "### 1부")
+    assert "물을 수 없는 환경" in block
+    assert "세팅을 진행하지 않는다" in block
+
+
+def test_the_old_unconditional_stop_asking_rule_is_gone():
+    """예전에는 '모르겠어요'에 추천값을 정하고 더 캐묻지 않았다 — 그게 이번 실패의 원인이다."""
+    assert "더 캐묻지 않는다" not in text()
+
+
+def test_direction_and_research_come_before_the_workspace_name_question():
+    t = text()
+    assert t.index(DIRECTION_QUESTION) < t.index(WORKFLOW_QUESTION) < t.index("작업 공간 경로와 이름")
+    assert t.index("### 1부") < t.index("### 2부") < t.index("### 3부") < t.index("작업 공간 경로와 이름")
+
+
+def test_the_direction_questions_carry_no_recommendation():
+    block = _slice("### 1부", "### 2부")
+    assert "★를 붙이지 않는다" in block
+    for field in ("`audience`", "`scope`", "`expertise`", "`tone`", "`platforms`"):
+        assert field in block, field
+    # 되짚어 확인하기 전에는 다음으로 가지 않는다.
+    assert "맞나요?" in block
+
+
+def test_a_sensitive_field_records_the_strict_evidence_rule():
+    block = _slice("### 1부", "### 2부")
+    assert "`evidence: strict`" in block
+    for field in ("건강", "금융", "법률", "안전"):
+        assert field in block, field
+
+
+def test_the_research_step_may_not_invent_channels_urls_or_numbers():
+    block = _slice("### 2부", "### 3부")
+    assert "실제로 열어 본 것만" in block
+    assert "지어내지 않는다" in block
+    assert "찾아본 척하지 않는다" in block
+    assert "구독자" in block and "조회수" in block
+    assert "출처 미확인" in block
+
+
+def test_the_user_picks_the_references_and_the_first_topics():
+    block = _slice("### 2부", "### 3부")
+    assert "사용자가 고르게 한다" in block
+    assert "조사하지 않은 아이디어" in block
+
+
+def test_the_summary_step_lists_the_direction_and_marks_agent_choices():
+    t = text()
+    assert "제가 고른 값" in t
+    summary = _slice("## 3. 요약과 확인", "## 4. 만들기")
+    for must in ("방향", "레퍼런스", "주제", "제가 고른 값"):
+        assert must in summary, must
+
+
+def test_the_rerun_menu_can_redo_the_direction():
+    assert "채널 방향 다시 잡기" in text()
