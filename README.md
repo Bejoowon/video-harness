@@ -59,7 +59,7 @@ curl -fsSL https://raw.githubusercontent.com/Bejoowon/video-harness/main/install
 irm https://raw.githubusercontent.com/Bejoowon/video-harness/main/install.ps1 | iex
 ```
 
-이 한 줄이 하는 일은 스킬 폴더 하나를 복사하는 것뿐입니다. 다른 프로그램은 설치하지 않습니다.
+이 한 줄이 하는 일은 저장소의 스킬 폴더들(지금은 두 개)을 복사하는 것뿐입니다. 다른 프로그램은 설치하지 않습니다.
 
 - Claude Code와 Codex 중 이 컴퓨터에 있는 쪽을 찾아서 넣습니다.
 - 이미 설치돼 있으면 예전 것을 지우지 않고 `skills-backup` 폴더로 옮긴 뒤 새로 넣습니다. **업데이트도 같은 명령**입니다.
