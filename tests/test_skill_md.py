@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-S = Path(__file__).resolve().parents[1] / "skills/video-harness-setup"
+SKILLS = Path(__file__).resolve().parents[1] / "skills"
+S = SKILLS / "video-harness-setup"
 
 
 def text():
@@ -48,11 +49,14 @@ def author_specific_names() -> list[str]:
 
 
 def test_no_author_specific_names_anywhere_in_the_skill():
-    """배포되는 스킬 폴더에는 이 스킬을 만든 사람의 실제 채널 이름이 남으면 안 된다."""
+    """배포되는 스킬 폴더에는 이 스킬을 만든 사람의 실제 채널 이름이 남으면 안 된다.
+
+    `skills/` 아래 **모든 스킬**을 본다. 스킬이 늘어나도 검사에서 빠지지 않게 하기 위해서다.
+    """
     names = author_specific_names()
     if not names:
         pytest.skip("tests/author_blocklist.local.txt가 없어 건너뜀")
-    for path in sorted(S.rglob("*")):
+    for path in sorted(SKILLS.rglob("*")):
         if not path.is_file() or path.suffix in {".pyc", ".png", ".jpg", ".otf", ".ttf"}:
             continue
         if "__pycache__" in path.parts or "node_modules" in path.parts:
@@ -62,7 +66,13 @@ def test_no_author_specific_names_anywhere_in_the_skill():
         except UnicodeDecodeError:
             continue
         for name in names:
-            assert name not in body, (path.relative_to(S).as_posix(), name)
+            assert name not in body, (path.relative_to(SKILLS).as_posix(), name)
+
+
+def test_the_guard_covers_every_installed_skill_folder():
+    """스킬이 둘 이상이다. 검사 대상이 `skills/` 전체인지 스스로 확인한다."""
+    installed = sorted(p.parent.name for p in SKILLS.glob("*/SKILL.md"))
+    assert installed == ["video-harness-setup", "video-reference-finder"], installed
 
 
 def test_every_reference_file_is_linked():

@@ -1,0 +1,4 @@
+interface:
+  display_name: "레퍼런스 찾기"
+  short_description: "참고할 영상·채널을 찾아 링크를 재확인하고 사용자가 고른 것만 기록"
+  default_prompt: "레퍼런스 찾아줘"
