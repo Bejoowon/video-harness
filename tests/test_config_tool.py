@@ -554,3 +554,111 @@ def test_set_allows_the_direction_fields_that_are_not_there_yet(tmp_path):
     assert channel["evidence"] == "strict"
     assert channel["topics"][0]["status"] == "researched"
     assert channel["audience"] == "40대 초보 러너"
+
+
+# --- add-reference (레퍼런스 찾기가 고른 것을 채널에 더한다) ---
+
+
+def _add_reference(ws, channel, *references):
+    argv = ["add-reference", str(ws), "--channel", channel]
+    for reference in references:
+        argv += ["--reference", reference]
+    return ct.main(argv)
+
+
+def _channel_id(ws):
+    """한글 이름은 `channel-<해시>` 같은 임의 id가 된다. 짐작하지 말고 설정에서 읽는다."""
+    return h.load_config(ws)["channels"][0]["id"]
+
+
+def test_add_reference_appends_to_an_existing_channel(tmp_path):
+    _init(tmp_path)
+    _add_channel(tmp_path, "동네한바퀴")
+    assert _add_reference(
+        tmp_path,
+        _channel_id(tmp_path),
+        "https://example.com/a::자막이 크고 가운데에 겹친다",
+        "https://example.com/b::컷 템포가 빠르다",
+    ) == 0
+
+    refs = h.load_config(tmp_path)["channels"][0]["references"]
+    assert [r["url"] for r in refs] == ["https://example.com/a", "https://example.com/b"]
+    assert refs[0]["likes"] == "자막이 크고 가운데에 겹친다"
+    assert all(r["status"] == "pending" for r in refs)
+
+
+def test_add_reference_accepts_a_list_number(tmp_path):
+    _init(tmp_path)
+    _add_channel(tmp_path, "동네한바퀴")
+    assert _add_reference(tmp_path, "0", "https://example.com/a::자막") == 0
+    assert h.load_config(tmp_path)["channels"][0]["references"][0]["url"] == "https://example.com/a"
+
+
+def test_add_reference_skips_a_url_already_recorded(tmp_path, capsys):
+    _init(tmp_path)
+    _add_channel(tmp_path, "동네한바퀴", "--reference", "https://example.com/a::자막")
+    capsys.readouterr()
+
+    assert _add_reference(tmp_path, _channel_id(tmp_path), "https://example.com/a::다른 말") == 0
+
+    out = json.loads(capsys.readouterr().out)
+    assert out["added"] == []
+    assert out["skipped"] == ["https://example.com/a"]
+    refs = h.load_config(tmp_path)["channels"][0]["references"]
+    assert len(refs) == 1
+    assert refs[0]["likes"] == "자막"
+
+
+def test_add_reference_refuses_an_unknown_channel(tmp_path, capsys):
+    _init(tmp_path)
+    _add_channel(tmp_path, "동네한바퀴")
+    before = (tmp_path / "harness.config.json").read_bytes()
+    capsys.readouterr()
+
+    assert _add_reference(tmp_path, "없는채널", "https://example.com/a::자막") == 1
+    assert "채널을 찾을 수 없습니다" in capsys.readouterr().err
+    assert (tmp_path / "harness.config.json").read_bytes() == before
+
+
+def test_add_reference_refuses_an_empty_url(tmp_path, capsys):
+    _init(tmp_path)
+    _add_channel(tmp_path, "동네한바퀴")
+    capsys.readouterr()
+    assert _add_reference(tmp_path, _channel_id(tmp_path), "::마음에 드는 점만 적었다") == 1
+    assert "주소가 비어 있습니다" in capsys.readouterr().err
+
+
+def test_add_reference_keeps_the_config_valid(tmp_path):
+    _init(tmp_path)
+    _add_channel(tmp_path, "동네한바퀴")
+    _add_reference(tmp_path, _channel_id(tmp_path), "https://example.com/a::자막")
+    assert h.validate_config(h.load_config(tmp_path)) == []
+
+
+def test_add_reference_appends_the_row_to_the_channels_reference_list(tmp_path):
+    import scaffold as s
+
+    _init(tmp_path)
+    _add_channel(tmp_path, "동네한바퀴")
+    config = h.load_config(tmp_path)
+    s.scaffold_channel(tmp_path, config, config["channels"][0])
+
+    assert _add_reference(tmp_path, _channel_id(tmp_path), "https://example.com/a::자막이 크다") == 0
+
+    listing = (tmp_path / "동네한바퀴/02_기획과자막/스타일레퍼런스/레퍼런스_목록.md").read_text(encoding="utf-8")
+    assert "https://example.com/a" in listing
+    assert "자막이 크다" in listing
+    assert "미분석" in listing
+
+
+def test_add_reference_says_so_when_the_channel_folder_does_not_exist_yet(tmp_path, capsys):
+    _init(tmp_path)
+    _add_channel(tmp_path, "동네한바퀴")
+    capsys.readouterr()
+
+    assert _add_reference(tmp_path, _channel_id(tmp_path), "https://example.com/a::자막") == 0
+
+    out = json.loads(capsys.readouterr().out)
+    assert out["reference_list"]["channel_missing"] is True
+    assert "폴더가 아직 없어" in out["note"]
+    assert h.load_config(tmp_path)["channels"][0]["references"]

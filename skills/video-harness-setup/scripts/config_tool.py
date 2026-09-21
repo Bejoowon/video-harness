@@ -18,6 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import harness_lib as h
+import scaffold
 
 FORMATS = ["9:16", "16:9"]
 KINDS = ["narration-shorts", "footage-shorts", "longform-vlog"]
@@ -318,6 +319,74 @@ def cmd_add_channel(args: argparse.Namespace) -> int:
     return 0
 
 
+def find_channel(config: dict, key: str) -> tuple[dict | None, str | None]:
+    """채널을 id로 찾고, 없으면 목록 번호(0부터)로 본다. (채널, 오류) 중 하나만 채워진다."""
+    channels = config.get("channels", [])
+    for channel in channels:
+        if channel.get("id") == key:
+            return channel, None
+    if key.isdigit():
+        index = int(key)
+        if index < len(channels):
+            return channels[index], None
+        return None, f"{index}번 채널이 없습니다(채널 수 {len(channels)})."
+    known = ", ".join(c.get("id", "?") for c in channels) or "없음"
+    return None, f"채널을 찾을 수 없습니다: {key} (등록된 id: {known})"
+
+
+def cmd_add_reference(args: argparse.Namespace) -> int:
+    """레퍼런스 찾기에서 사용자가 고른 것을 채널에 덧붙인다.
+
+    설정을 쓰는 창구는 이 도구 하나다(design §7). 저장이 끝나면 채널의
+    `레퍼런스_목록.md`에 없는 줄만 덧붙인다 — 사용자가 고쳐 놓은 줄은 건드리지 않는다.
+    """
+    workspace = Path(args.workspace)
+    config, error = _load(workspace)
+    if error:
+        return _fail(error)
+
+    channel, error = find_channel(config, args.channel)
+    if error:
+        return _fail(error)
+
+    references = list(channel.get("references") or [])
+    known = {scaffold.reference_location(ref) for ref in references}
+    added: list[str] = []
+    skipped: list[str] = []
+    for raw in args.reference:
+        item = parse_reference(raw)
+        if not item["url"]:
+            return _fail(f"레퍼런스 주소가 비어 있습니다: '{raw}' (형식: URL::마음에 드는 점)")
+        if item["url"] in known:
+            skipped.append(item["url"])
+            continue
+        known.add(item["url"])
+        references.append(item)
+        added.append(item["url"])
+
+    if added:
+        channel["references"] = references
+
+    failed = _save_if_valid(workspace, config)
+    if failed:
+        return failed
+
+    listing = scaffold.sync_reference_list(workspace, config, channel)
+    result = {
+        "channel": channel.get("id"),
+        "added": added,
+        "skipped": skipped,
+        "reference_list": listing,
+    }
+    if listing["channel_missing"]:
+        result["note"] = (
+            f"'{channel.get('name')}' 폴더가 아직 없어 설정에만 기록했습니다. "
+            "폴더를 만들면 레퍼런스_목록.md에 함께 들어갑니다."
+        )
+    _dump(result)
+    return 0
+
+
 def cmd_remove_channel(args: argparse.Namespace) -> int:
     workspace = Path(args.workspace)
     config, error = _load(workspace)
@@ -421,6 +490,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="조사하지 않고 함께 떠올린 아이디어. 여러 번 줄 수 있다",
     )
 
+    reference_parser = sub.add_parser("add-reference", help="이미 있는 채널에 레퍼런스를 더한다")
+    reference_parser.add_argument("workspace", type=Path)
+    reference_parser.add_argument("--channel", required=True, help="채널 id 또는 목록 번호(0부터)")
+    reference_parser.add_argument(
+        "--reference",
+        action="append",
+        required=True,
+        metavar="URL::마음에 드는 점",
+        help="여러 번 줄 수 있다. 이미 있는 주소는 건너뛴다",
+    )
+
     remove_parser = sub.add_parser("remove-channel", help="채널을 설정에서 뺀다 (폴더는 그대로 둔다)")
     remove_parser.add_argument("workspace", type=Path)
     remove_parser.add_argument("channel_id", help="뺄 채널의 id")
@@ -438,6 +518,7 @@ _COMMANDS = {
     "init": cmd_init,
     "set": cmd_set,
     "add-channel": cmd_add_channel,
+    "add-reference": cmd_add_reference,
     "remove-channel": cmd_remove_channel,
     "show": cmd_show,
     "validate": cmd_validate,

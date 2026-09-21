@@ -107,3 +107,31 @@ def test_node_with_unparsable_version_is_not_ok():
     tools = p.check_tools(fake_which({"node"}), fake_run({"node": "custom build"}))
     assert tools["node"]["found"] and not tools["node"]["ok"]
     assert tools["node"]["note"]
+
+
+# --- aside는 선택 도구다. 있는지만 보고 실행하지 않는다 ---
+
+
+def test_aside_is_optional_and_never_blocks():
+    assert "aside" in p.OPTIONAL
+    assert "aside" not in p.REQUIRED
+
+
+def test_aside_is_detected_without_ever_being_run():
+    """`aside`는 사용자의 로그인된 브라우저를 움직인다. 점검이 실행해서는 안 된다."""
+
+    def run(cmd, **kw):
+        assert "aside" not in Path(cmd[0]).name, cmd
+        return 0, "1.0.0"
+
+    tools = p.check_tools(fake_which({"aside"}), run)
+    assert tools["aside"]["found"] and tools["aside"]["ok"]
+    assert tools["aside"]["version"] is None
+    assert tools["aside"]["note"]
+
+
+def test_missing_aside_is_just_absent(tmp_path):
+    tools = p.check_tools(fake_which(set()), fake_run({}))
+    assert not tools["aside"]["found"]
+    report = p.build_report(tmp_path)
+    assert "aside" not in report["missing_required"]

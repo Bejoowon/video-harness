@@ -654,3 +654,109 @@ def test_agents_md_ties_an_episode_to_the_direction_and_an_agreed_topic(tmp_path
     text = (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
     assert "주제_후보.md" in text
     assert "동의하지 않은 주제로 회차를 시작하지 않는다" in text
+
+
+# --- sync_reference_list: 이미 있는 목록에 없는 줄만 덧붙인다 ---
+
+
+def _listing_path(tmp_path):
+    return tmp_path / "동네한바퀴/02_기획과자막/스타일레퍼런스/레퍼런스_목록.md"
+
+
+def test_sync_creates_the_list_when_it_is_missing(tmp_path):
+    c = cfg(tmp_path)
+    channel = c["channels"][0]
+    (tmp_path / "동네한바퀴").mkdir()
+    channel["references"] = [{"url": "https://example.com/a", "likes": "자막", "status": "pending"}]
+
+    result = s.sync_reference_list(tmp_path, c, channel)
+
+    assert result["created"] is True
+    assert result["appended"] == ["https://example.com/a"]
+    listing = _listing_path(tmp_path).read_text(encoding="utf-8")
+    assert "https://example.com/a" in listing and "미분석" in listing
+
+
+def test_sync_appends_only_the_rows_that_are_missing(tmp_path):
+    c = cfg(tmp_path)
+    channel = c["channels"][0]
+    channel["references"] = [{"url": "https://example.com/a", "likes": "자막", "status": "pending"}]
+    s.scaffold_channel(tmp_path, c, channel)
+
+    channel["references"].append({"url": "https://example.com/b", "likes": "컷 템포", "status": "pending"})
+    result = s.sync_reference_list(tmp_path, c, channel)
+
+    assert result["appended"] == ["https://example.com/b"]
+    assert result["skipped"] == ["https://example.com/a"]
+    listing = _listing_path(tmp_path).read_text(encoding="utf-8")
+    assert "| 1 | https://example.com/a" in listing
+    assert "| 2 | https://example.com/b" in listing
+
+
+def test_sync_never_rewrites_what_the_user_changed(tmp_path):
+    c = cfg(tmp_path)
+    channel = c["channels"][0]
+    channel["references"] = [{"url": "https://example.com/a", "likes": "자막", "status": "pending"}]
+    s.scaffold_channel(tmp_path, c, channel)
+
+    path = _listing_path(tmp_path)
+    edited = path.read_text(encoding="utf-8").replace("| 1 | https://example.com/a | 자막 | 미분석 |",
+                                                      "| 1 | https://example.com/a | 자막 크기 | 분석 완료 |")
+    path.write_text(edited + "\n내가 적은 메모\n", encoding="utf-8")
+
+    channel["references"].append({"url": "https://example.com/b", "likes": "컷 템포", "status": "pending"})
+    s.sync_reference_list(tmp_path, c, channel)
+
+    listing = path.read_text(encoding="utf-8")
+    assert "| 1 | https://example.com/a | 자막 크기 | 분석 완료 |" in listing
+    assert "내가 적은 메모" in listing
+    assert "https://example.com/b" in listing
+
+
+def test_sync_keeps_the_later_note_below_the_table(tmp_path):
+    c = cfg(tmp_path)
+    channel = c["channels"][0]
+    s.scaffold_channel(tmp_path, c, channel)  # 레퍼런스가 없으니 "나중에 가져오기" 안내만 있다
+
+    channel["references"] = [{"url": "https://example.com/a", "likes": "자막", "status": "pending"}]
+    s.sync_reference_list(tmp_path, c, channel)
+
+    listing = _listing_path(tmp_path).read_text(encoding="utf-8")
+    assert listing.index("https://example.com/a") < listing.index("나중에 가져오기")
+
+
+def test_sync_reports_a_channel_folder_that_was_never_scaffolded(tmp_path):
+    c = cfg(tmp_path)
+    channel = c["channels"][0]
+    channel["references"] = [{"url": "https://example.com/a", "likes": "자막", "status": "pending"}]
+
+    result = s.sync_reference_list(tmp_path, c, channel)
+
+    assert result["channel_missing"] is True
+    assert result["appended"] == []
+    assert not _listing_path(tmp_path).exists()
+
+
+def test_sync_is_idempotent(tmp_path):
+    c = cfg(tmp_path)
+    channel = c["channels"][0]
+    channel["references"] = [{"url": "https://example.com/a", "likes": "자막", "status": "pending"}]
+    s.scaffold_channel(tmp_path, c, channel)
+
+    before = _listing_path(tmp_path).read_text(encoding="utf-8")
+    s.sync_reference_list(tmp_path, c, channel)
+    assert _listing_path(tmp_path).read_text(encoding="utf-8") == before
+
+
+def test_sync_does_not_mistake_a_longer_url_for_the_one_it_is_adding(tmp_path):
+    """`…/a`가 `…/ab`의 앞부분이라는 이유로 조용히 빠지면 안 된다."""
+    c = cfg(tmp_path)
+    channel = c["channels"][0]
+    channel["references"] = [{"url": "https://example.com/ab", "likes": "긴 쪽", "status": "pending"}]
+    s.scaffold_channel(tmp_path, c, channel)
+
+    channel["references"].insert(0, {"url": "https://example.com/a", "likes": "짧은 쪽", "status": "pending"})
+    result = s.sync_reference_list(tmp_path, c, channel)
+
+    assert result["appended"] == ["https://example.com/a"]
+    assert "짧은 쪽" in _listing_path(tmp_path).read_text(encoding="utf-8")

@@ -295,3 +295,12 @@ def test_the_summary_step_lists_the_direction_and_marks_agent_choices():
 
 def test_the_rerun_menu_can_redo_the_direction():
     assert "채널 방향 다시 잡기" in text()
+
+
+# --- 2부는 레퍼런스 찾기 스킬이 있으면 그 절차를 따른다 ---
+
+
+def test_the_research_step_defers_to_the_reference_finder_when_it_is_installed():
+    block = _slice("### 2부", "### 3부")
+    assert "video-reference-finder" in block
+    assert "그 스킬이 없으면" in block

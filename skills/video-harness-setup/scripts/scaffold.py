@@ -417,10 +417,15 @@ def _channel_values(config: dict, channel: dict) -> dict:
     return values
 
 
-def _reference_rows(references: list[dict]) -> str:
+def reference_location(reference: dict) -> str:
+    """레퍼런스 항목이 가리키는 곳. 주소이거나 작업 공간 안의 경로다."""
+    return reference.get("url") or reference.get("path", "")
+
+
+def _reference_rows(references: list[dict], start: int = 1) -> str:
     rows = []
-    for i, ref in enumerate(references, start=1):
-        location = ref.get("url") or ref.get("path", "")
+    for i, ref in enumerate(references, start=start):
+        location = reference_location(ref)
         likes = ref.get("likes", "")
         status_raw = ref.get("status", "")
         status = STATUS_LABELS.get(status_raw, status_raw)
@@ -436,6 +441,106 @@ def _topic_rows(topics: list[dict]) -> str:
         status = TOPIC_STATUS_LABELS.get(status_raw, status_raw)
         rows.append(f"| {i} | {topic.get('title', '')} | {topic.get('basis', '')} | {status} |")
     return "\n".join(rows)
+
+
+REFERENCE_LIST_REL = "02_기획과자막/스타일레퍼런스/레퍼런스_목록.md"
+_ROW_NUMBER_RE = re.compile(r"^\|\s*(\d+)\s*\|")
+
+
+def reference_list_path(workspace: Path, channel: dict) -> Path:
+    return Path(workspace) / channel["name"] / REFERENCE_LIST_REL
+
+
+def _render_reference_list(config: dict, channel: dict) -> str:
+    """`레퍼런스_목록.md`를 평소 템플릿 경로로 렌더한다. 새로 만들 때만 쓴다."""
+    references = channel.get("references", [])
+    values = _channel_values(config, channel)
+    values["reference_rows"] = _reference_rows(references)
+    values["later_note"] = "" if references else LATER_NOTE
+    template = (_templates_dir() / "레퍼런스_목록.md.tmpl").read_text(encoding="utf-8")
+    return h.render_template(template, values)
+
+
+def _last_table_line(lines: list[str]) -> int | None:
+    for index in range(len(lines) - 1, -1, -1):
+        if lines[index].lstrip().startswith("|"):
+            return index
+    return None
+
+
+# 주소가 끝났다고 볼 수 있는 글자. `…/a`가 `…/ab`의 앞부분일 뿐인 경우를 가려낸다.
+_LOCATION_BOUNDARY_RE = re.compile(r"[\s|)\]},;\"'<>]")
+
+
+def _already_recorded(body: str, location: str) -> bool:
+    """`location`이 파일에 이미 적혀 있는가.
+
+    단순 부분 문자열로 보면 `https://example.com/a`가 `https://example.com/ab`만
+    적힌 파일에서도 "이미 있다"로 읽혀 새 레퍼런스가 조용히 빠진다. 뒤에 글자가 더
+    붙어 있으면 다른 주소로 본다.
+    """
+    for match in re.finditer(re.escape(location), body):
+        tail = body[match.end(): match.end() + 1]
+        if tail == "" or _LOCATION_BOUNDARY_RE.match(tail):
+            return True
+    return False
+
+
+def _highest_row_number(lines: list[str]) -> int:
+    highest = 0
+    for line in lines:
+        match = _ROW_NUMBER_RE.match(line.strip())
+        if match:
+            highest = max(highest, int(match.group(1)))
+    return highest
+
+
+def sync_reference_list(workspace: Path, config: dict, channel: dict) -> dict:
+    """설정에 있는데 `레퍼런스_목록.md`에 없는 줄만 표 끝에 덧붙인다.
+
+    `config_tool.py add-reference`가 저장을 마친 뒤에 부른다. 파일이 없으면 평소
+    템플릿 경로로 만들고, 있으면 **이미 적힌 줄은 한 글자도 고치지 않는다** — 사용자가
+    손으로 적어 넣은 메모와 상태를 지우지 않기 위해서다. 채널 폴더가 아직 없으면
+    (스캐폴드를 돌린 적이 없으면) 아무것도 만들지 않고 그렇다고 알려 준다.
+    """
+    result: dict = {"path": None, "created": False, "appended": [], "skipped": [], "channel_missing": False}
+    base = Path(workspace) / channel["name"]
+    if not base.is_dir():
+        result["channel_missing"] = True
+        return result
+
+    path = reference_list_path(workspace, channel)
+    result["path"] = str(path)
+    references = channel.get("references", [])
+
+    if not path.exists():
+        report: dict = {"created": [], "skipped": []}
+        write_if_absent(path, _render_reference_list(config, channel), report)
+        result["created"] = True
+        result["appended"] = [reference_location(ref) for ref in references]
+        return result
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    body = "\n".join(lines)
+    missing = []
+    for ref in references:
+        location = reference_location(ref)
+        if not location:
+            continue
+        if _already_recorded(body, location):
+            result["skipped"].append(location)
+        else:
+            missing.append(ref)
+
+    if missing:
+        rows = _reference_rows(missing, start=_highest_row_number(lines) + 1).splitlines()
+        at = _last_table_line(lines)
+        at = len(lines) - 1 if at is None else at
+        lines[at + 1: at + 1] = rows
+        path.write_text("\n".join(lines).rstrip("\n") + "\n", encoding="utf-8")
+        result["appended"] = [reference_location(ref) for ref in missing]
+
+    return result
 
 
 def scaffold_workspace(workspace: Path, config: dict) -> dict:
@@ -522,12 +627,7 @@ def scaffold_channel(workspace: Path, config: dict, channel: dict) -> dict:
     script_form = h.render_template((templates / "대본_양식.md.tmpl").read_text(encoding="utf-8"), form_values)
     write_if_absent(base / "02_기획과자막/_양식/대본_양식.md", script_form, report)
 
-    references = channel.get("references", [])
-    ref_values = dict(values)
-    ref_values["reference_rows"] = _reference_rows(references)
-    ref_values["later_note"] = "" if references else LATER_NOTE
-    ref_list = h.render_template((templates / "레퍼런스_목록.md.tmpl").read_text(encoding="utf-8"), ref_values)
-    write_if_absent(base / "02_기획과자막/스타일레퍼런스/레퍼런스_목록.md", ref_list, report)
+    write_if_absent(reference_list_path(workspace, channel), _render_reference_list(config, channel), report)
 
     gathering = h.render_template((templates / "레퍼런스_모으는_법.md.tmpl").read_text(encoding="utf-8"), values)
     write_if_absent(base / "02_기획과자막/스타일레퍼런스/레퍼런스_모으는_법.md", gathering, report)

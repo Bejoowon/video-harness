@@ -17,7 +17,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import harness_lib as h
 
 REQUIRED = ["python", "ffmpeg", "ffprobe", "node", "npx", "git"]
-OPTIONAL = ["uv", "yt-dlp", "brew", "winget"]
+OPTIONAL = ["uv", "yt-dlp", "brew", "winget", "aside"]
+
+# 있는지만 보고 **실행하지 않는** 도구. `aside`는 사용자의 로그인된 브라우저를 움직이는
+# CLI라, 버전을 물어보려고라도 점검이 실행해서는 안 된다. 선택 도구이므로 없어도
+# `can_proceed`에는 영향이 없다(그 값은 REQUIRED만 본다).
+PATH_ONLY = {"aside"}
 
 # 편집기 탐지 경로 상수 (탐지 대상이므로 절대경로 금지 규칙의 예외, global-constraints.md).
 # 모든 항목은 루트 + 상대 이름/글롭으로 구성한다. `detect_editors`는 이 표에서만 경로를
@@ -75,6 +80,16 @@ def check_tools(which_fn=h.which, run_fn=h.run) -> dict:
                 "version": None,
                 "ok": False,
                 "note": "설치되지 않았습니다",
+            }
+            continue
+
+        if tool in PATH_ONLY:
+            tools[tool] = {
+                "found": True,
+                "path": path,
+                "version": None,
+                "ok": True,
+                "note": "설치되어 있습니다 (버전을 확인하려고 실행하지는 않습니다)",
             }
             continue
 
